@@ -1,2 +1,2 @@
-# nekoton-wasm
+## nekoton-wasm
 WASM bindings for Nekoton SDK
