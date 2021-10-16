@@ -88,6 +88,7 @@ impl GqlTransport {
         })))
     }
 
+    #[wasm_bindgen(js_name = "getFullContractState")]
     pub fn get_full_contract_state(
         &self,
         address: &str,
