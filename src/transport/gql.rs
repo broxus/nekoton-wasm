@@ -6,7 +6,7 @@ use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::*;
 
 use super::{IntoHandle, TransportHandle};
-use crate::external::{GqlConnectionImpl, GqlSender};
+use crate::external::{GqlConnectionImpl, IGqlSender};
 use crate::generic_contract::*;
 use crate::models::*;
 use crate::utils::*;
@@ -21,7 +21,7 @@ pub struct GqlTransport {
 #[wasm_bindgen]
 impl GqlTransport {
     #[wasm_bindgen(constructor)]
-    pub fn new(sender: GqlSender) -> Self {
+    pub fn new(sender: IGqlSender) -> Self {
         Self {
             inner: Arc::new(GqlConnectionImpl::new(sender)),
         }
@@ -85,6 +85,22 @@ impl GqlTransport {
                 .await
                 .handle_error()?;
             Ok(JsValue::from(next_block))
+        })))
+    }
+
+    pub fn get_full_contract_state(
+        &self,
+        address: &str,
+    ) -> Result<PromiseOptionFullContractState, JsValue> {
+        let address = parse_address(address)?;
+        let transport = self.make_transport();
+
+        Ok(JsCast::unchecked_into(future_to_promise(async move {
+            let state = transport
+                .get_contract_state(&address)
+                .await
+                .handle_error()?;
+            make_full_contract_state(state)
         })))
     }
 

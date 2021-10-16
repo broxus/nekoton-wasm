@@ -5,11 +5,11 @@ use futures::channel::oneshot;
 use wasm_bindgen::prelude::*;
 
 pub struct GqlConnectionImpl {
-    sender: Arc<GqlSender>,
+    sender: Arc<IGqlSender>,
 }
 
 impl GqlConnectionImpl {
-    pub fn new(sender: GqlSender) -> Self {
+    pub fn new(sender: IGqlSender) -> Self {
         Self {
             sender: Arc::new(sender),
         }
@@ -32,24 +32,51 @@ impl nt::external::GqlConnection for GqlConnectionImpl {
     }
 }
 
+#[wasm_bindgen(typescript_custom_section)]
+const GQL_SENDER: &str = r#"
+export interface IGqlSender {
+  isLocal(): boolean;
+  send(data: string, handler: GqlQuery): void;
+}
+"#;
+
 #[wasm_bindgen]
 extern "C" {
-    pub type GqlSender;
+    #[wasm_bindgen(typescript_type = "IGqlSender")]
+    pub type IGqlSender;
 
     #[wasm_bindgen(method, js_name = "isLocal")]
-    pub fn is_local(this: &GqlSender) -> bool;
+    pub fn is_local(this: &IGqlSender) -> bool;
 
     #[wasm_bindgen(method)]
-    pub fn send(this: &GqlSender, data: &str, handler: GqlQuery);
+    pub fn send(this: &IGqlSender, data: &str, handler: GqlQuery);
 }
 
-unsafe impl Send for GqlSender {}
-unsafe impl Sync for GqlSender {}
+unsafe impl Send for IGqlSender {}
+unsafe impl Sync for IGqlSender {}
 
 #[wasm_bindgen]
 pub struct GqlQuery {
     #[wasm_bindgen(skip)]
     pub tx: oneshot::Sender<GqlQueryResult>,
+}
+
+#[wasm_bindgen]
+impl GqlQuery {
+    #[wasm_bindgen(js_name = "onReceive")]
+    pub fn on_receive(self, data: String) {
+        let _ = self.tx.send(Ok(data));
+    }
+
+    #[wasm_bindgen(js_name = "onError")]
+    pub fn on_error(self, _: JsValue) {
+        let _ = self.tx.send(Err(GqlQueryError::RequestFailed));
+    }
+
+    #[wasm_bindgen(js_name = "onTimeout")]
+    pub fn on_timeout(self) {
+        let _ = self.tx.send(Err(GqlQueryError::TimeoutReached));
+    }
 }
 
 type GqlQueryResult = Result<String, GqlQueryError>;
