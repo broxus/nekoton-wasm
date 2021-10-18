@@ -19,6 +19,11 @@ mod tokens_object;
 mod transport;
 mod utils;
 
+#[wasm_bindgen(js_name = "checkAddress")]
+pub fn check_address(address: &str) -> bool {
+    nt_utils::validate_address(address)
+}
+
 #[wasm_bindgen(js_name = "runLocal")]
 pub fn run_local(
     gen_timings: GenTimings,
