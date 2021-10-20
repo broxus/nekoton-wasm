@@ -818,7 +818,7 @@ dependencies = [
 
 [[package]]
 name = "nekoton-wasm"
-version = "0.1.5"
+version = "0.1.7"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -831,7 +831,6 @@ dependencies = [
  "getrandom",
  "hex",
  "js-sys",
- "log",
  "nekoton",
  "nekoton-abi",
  "nekoton-utils",
@@ -850,7 +849,6 @@ dependencies = [
  "ton_types",
  "wasm-bindgen",
  "wasm-bindgen-futures",
- "wasm-logger",
 ]
 
 [[package]]
@@ -1644,17 +1642,6 @@ name = "wasm-bindgen-shared"
 version = "0.2.78"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0237232789cf037d5480773fe568aac745bfe2afbc11a863e97901780a6b47cc"
-
-[[package]]
-name = "wasm-logger"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "074649a66bb306c8f2068c9016395fa65d8e08d2affcbf95acf3c24c3ab19718"
-dependencies = [
- "log",
- "wasm-bindgen",
- "web-sys",
-]
 
 [[package]]
 name = "web-sys"

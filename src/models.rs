@@ -421,6 +421,7 @@ pub fn parse_method_name(value: MethodName) -> Result<nt_abi::MethodName, JsValu
 #[wasm_bindgen(typescript_custom_section)]
 const TOKEN: &str = r#"
 export type AbiToken =
+    | null
     | boolean
     | string
     | number
@@ -449,6 +450,8 @@ export type AbiParamKindArray = `${AbiParamKind}[]`;
 
 export type AbiParamKindMap = `map(${AbiParamKindInt | AbiParamKindUint | AbiParamKindAddress},${AbiParamKind | `${AbiParamKind}[]`})`;
 
+export type AbiParamOptional = `optional(${AbiParamKind})`
+
 export type AbiParamKind =
   | AbiParamKindUint
   | AbiParamKindInt
@@ -465,7 +468,7 @@ export type AbiParamKind =
 
 export type AbiParam = {
   name: string;
-  type: AbiParamKind | AbiParamKindMap | AbiParamKindArray;
+  type: AbiParamKind | AbiParamKindMap | AbiParamKindArray | AbiParamOptional;
   components?: AbiParam[];
 };
 "#;
