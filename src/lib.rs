@@ -79,6 +79,14 @@ pub fn get_expected_address(
     .to_string())
 }
 
+#[wasm_bindgen(js_name = "getBocHash")]
+pub fn get_boc_hash(boc: &str) -> Result<String, JsValue> {
+    let body = base64::decode(boc).handle_error()?;
+    let cell =
+        ton_types::deserialize_tree_of_cells(&mut std::io::Cursor::new(body)).handle_error()?;
+    Ok(cell.repr_hash().to_hex_string())
+}
+
 #[wasm_bindgen(js_name = "packIntoCell")]
 pub fn pack_into_cell(params: ParamsList, tokens: TokensObject) -> Result<String, JsValue> {
     let params = parse_params_list(params).handle_error()?;
@@ -374,23 +382,16 @@ pub fn decode_transaction_events(
 }
 
 #[wasm_bindgen(js_name = "verifySignature")]
-pub fn verify_signature(
-    public_key: &str,
-    data_hash: &str,
-    signature: &str,
-) -> Result<bool, JsValue> {
+pub fn verify_signature(public_key: &str, data: &str, signature: &str) -> Result<bool, JsValue> {
     let public_key = parse_public_key(public_key)?;
 
-    let data_hash = match hex::decode(data_hash) {
-        Ok(data_hash) => data_hash,
-        Err(e) => match base64::decode(data_hash) {
-            Ok(data_hash) => data_hash,
+    let data = match hex::decode(data) {
+        Ok(data) => data,
+        Err(e) => match base64::decode(data) {
+            Ok(data) => data,
             Err(_) => return Err(e).handle_error(),
         },
     };
-    if data_hash.len() != 32 {
-        return Err("Invalid data hash. Expected 32 bytes").handle_error();
-    }
 
     let signature = match base64::decode(signature) {
         Ok(signature) => signature,
@@ -404,7 +405,7 @@ pub fn verify_signature(
         Err(_) => return Err("Invalid signature. Expected 64 bytes").handle_error(),
     };
 
-    Ok(public_key.verify(&data_hash, &signature).is_ok())
+    Ok(public_key.verify(&data, &signature).is_ok())
 }
 
 #[wasm_bindgen(js_name = "createExternalMessageWithoutSignature")]
