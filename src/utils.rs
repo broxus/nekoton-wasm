@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use std::sync::Arc;
 
 use ton_block::{Deserializable, MsgAddressInt};
 use wasm_bindgen::prelude::*;
@@ -55,6 +56,38 @@ impl ObjectBuilder {
 impl Default for ObjectBuilder {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[wasm_bindgen]
+pub struct ClockWithOffset {
+    #[wasm_bindgen(skip)]
+    pub inner: Arc<nt_utils::ClockWithOffset>,
+}
+
+#[wasm_bindgen]
+impl ClockWithOffset {
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> ClockWithOffset {
+        Self {
+            inner: Arc::new(Default::default()),
+        }
+    }
+
+    #[wasm_bindgen(js_name = "updateOffset")]
+    pub fn update_offset(&self, offset_ms: f64) {
+        self.inner.update_offset(offset_ms as i64)
+    }
+
+    #[wasm_bindgen(js_name = "offsetMs")]
+    pub fn offset_ms(&self) -> f64 {
+        self.inner.offset_ms() as f64
+    }
+}
+
+impl ClockWithOffset {
+    pub fn clone_inner(&self) -> Arc<nt_utils::ClockWithOffset> {
+        self.inner.clone()
     }
 }
 

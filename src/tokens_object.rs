@@ -43,7 +43,7 @@ pub fn insert_init_data(
 
             let builder = parse_token_value(&param.value.kind, value)
                 .handle_error()?
-                .pack_into_chain(2)
+                .pack_into_chain(&ton_abi::contract::ABI_VERSION_2_0)
                 .handle_error()?;
 
             map.set_builder(param.key.write_to_new_cell().trust_me().into(), &builder)
@@ -113,6 +113,7 @@ pub fn make_token_value(value: ton_abi::TokenValue) -> Result<JsValue, JsValue> 
             Some(value) => make_token_value(*value)?,
             None => JsValue::null(),
         },
+        ton_abi::TokenValue::Ref(value) => make_token_value(*value)?,
     })
 }
 
@@ -437,6 +438,9 @@ pub fn parse_token_value(
                 ton_abi::TokenValue::Optional(*param.clone(), Some(value))
             }
         }
+        ton_abi::ParamType::Ref(param) => {
+            ton_abi::TokenValue::Ref(Box::new(parse_token_value(param, value)?))
+        }
     };
 
     Ok(value)
@@ -572,6 +576,10 @@ pub fn parse_param_type(kind: &str) -> Result<ton_abi::ParamType, TokensJsonErro
         s if s.starts_with("optional(") && s.ends_with(')') => {
             let inner_type = parse_param_type(&s[9..s.len() - 1])?;
             ton_abi::ParamType::Optional(Box::new(inner_type))
+        }
+        s if s.starts_with("ref(") && s.ends_with(')') => {
+            let inner_type = parse_param_type(&s[4..s.len() - 1])?;
+            ton_abi::ParamType::Ref(Box::new(inner_type))
         }
         _ => return Err(TokensJsonError::ParamTypeExpected),
     };

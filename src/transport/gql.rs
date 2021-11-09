@@ -16,14 +16,17 @@ use crate::utils::*;
 pub struct GqlTransport {
     #[wasm_bindgen(skip)]
     pub inner: Arc<GqlConnectionImpl>,
+    #[wasm_bindgen(skip)]
+    pub clock: Arc<nt_utils::ClockWithOffset>,
 }
 
 #[wasm_bindgen]
 impl GqlTransport {
     #[wasm_bindgen(constructor)]
-    pub fn new(sender: IGqlSender) -> Self {
+    pub fn new(clock: &ClockWithOffset, sender: IGqlSender) -> Self {
         Self {
             inner: Arc::new(GqlConnectionImpl::new(sender)),
+            clock: clock.clone_inner(),
         }
     }
 
@@ -35,11 +38,13 @@ impl GqlTransport {
     ) -> Result<PromiseGenericContract, JsValue> {
         let address = parse_address(address)?;
 
+        let clock = self.clock.clone();
         let transport = Arc::new(self.make_transport());
         let handler = Arc::new(GenericContractSubscriptionHandler::from(handler));
 
         Ok(JsCast::unchecked_into(future_to_promise(async move {
             let wallet = nt::core::generic_contract::GenericContract::subscribe(
+                clock,
                 transport.clone() as Arc<dyn nt::transport::Transport>,
                 address,
                 handler,

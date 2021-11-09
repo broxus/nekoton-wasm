@@ -60,23 +60,6 @@ pub fn make_gen_timings(data: nt_abi::GenTimings) -> GenTimings {
         .unchecked_into()
 }
 
-pub fn parse_gen_timings(data: GenTimings) -> Result<nt_abi::GenTimings, JsValue> {
-    #[derive(Clone, serde::Deserialize)]
-    #[serde(rename_all = "camelCase")]
-    struct ParsedGenTimings {
-        gen_lt: String,
-        gen_utime: u32,
-    }
-
-    let ParsedGenTimings { gen_lt, gen_utime } =
-        JsValue::into_serde::<ParsedGenTimings>(&data).handle_error()?;
-    let gen_lt = u64::from_str(&gen_lt).handle_error()?;
-    match (gen_lt, gen_utime) {
-        (0, _) | (_, 0) => Ok(nt_abi::GenTimings::Unknown),
-        (gen_lt, gen_utime) => Ok(nt_abi::GenTimings::Known { gen_lt, gen_utime }),
-    }
-}
-
 #[wasm_bindgen(typescript_custom_section)]
 const LAST_TRANSACTION_ID: &str = r#"
 export type LastTransactionId = {

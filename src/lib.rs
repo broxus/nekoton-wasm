@@ -26,14 +26,13 @@ pub fn check_address(address: &str) -> bool {
 
 #[wasm_bindgen(js_name = "runLocal")]
 pub fn run_local(
-    gen_timings: GenTimings,
+    clock: &ClockWithOffset,
     last_transaction_id: LastTransactionId,
     account_stuff_boc: &str,
     contract_abi: &str,
     method: &str,
     input: TokensObject,
 ) -> Result<ExecutionOutput, JsValue> {
-    let gen_timings = parse_gen_timings(gen_timings)?;
     let last_transaction_id = parse_last_transaction_id(last_transaction_id)?;
     let account_stuff = parse_account_stuff(account_stuff_boc)?;
     let contract_abi = parse_contract_abi(contract_abi)?;
@@ -41,7 +40,12 @@ pub fn run_local(
     let input = parse_tokens_object(&method.inputs, input).handle_error()?;
 
     let output = method
-        .run_local(account_stuff, gen_timings, &last_transaction_id, &input)
+        .run_local(
+            clock.inner.as_ref(),
+            account_stuff,
+            &last_transaction_id,
+            &input,
+        )
         .handle_error()?;
 
     make_execution_output(output)
