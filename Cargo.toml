@@ -1,6 +1,6 @@
 [package]
 name = "nekoton-wasm"
-version = "0.1.9"
+version = "0.1.10"
 edition = "2018"
 authors = ["Ivan Kalinin <i.kalinin@dexpa.io>"]
 description = "Nekoton bindings for WASM"

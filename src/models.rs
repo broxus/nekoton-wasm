@@ -149,6 +149,7 @@ fn make_account_status(data: nt::core::models::AccountStatus) -> AccountStatus {
 #[wasm_bindgen(typescript_custom_section)]
 const MESSAGE: &str = r#"
 export type Message = {
+    hash: string,
     src?: string,
     dst?: string,
     value: string,
@@ -168,6 +169,7 @@ pub fn make_message(data: models::Message) -> Message {
     };
 
     ObjectBuilder::new()
+        .set("hash", data.hash.to_hex_string())
         .set("src", data.src.as_ref().map(ToString::to_string))
         .set("dst", data.dst.as_ref().map(ToString::to_string))
         .set("value", data.value.to_string())
