@@ -192,9 +192,30 @@ export type PendingTransaction = {
 pub fn make_pending_transaction(data: models::PendingTransaction) -> PendingTransaction {
     ObjectBuilder::new()
         .set("messageHash", data.message_hash.to_hex_string())
-        .set("bodyHash", data.body_hash.to_hex_string())
         .set("src", data.src.as_ref().map(ToString::to_string))
         .set("expireAt", data.expire_at)
+        .build()
+        .unchecked_into()
+}
+
+#[wasm_bindgen(typescript_custom_section)]
+const ACCOUNTS_LIST: &'static str = r#"
+export type AccountsList = {
+  accounts: string[];
+  continuation: string | undefined;
+}
+"#;
+
+pub fn make_accounts_list(accounts: Vec<ton_block::MsgAddressInt>) -> AccountsList {
+    ObjectBuilder::new()
+        .set("continuation", accounts.last().map(ToString::to_string))
+        .set(
+            "accounts",
+            accounts
+                .into_iter()
+                .map(|account| JsValue::from(account.to_string()))
+                .collect::<js_sys::Array>(),
+        )
         .build()
         .unchecked_into()
 }
@@ -609,7 +630,7 @@ pub fn make_full_contract_state(
                     "isDeployed",
                     matches!(
                         &state.account.storage.state,
-                        ton_block::AccountState::AccountActive(_)
+                        ton_block::AccountState::AccountActive { .. }
                     ),
                 )
                 .set("boc", boc)
@@ -663,6 +684,15 @@ extern "C" {
 
     #[wasm_bindgen(typescript_type = "Promise<Transaction>")]
     pub type PromiseTransaction;
+
+    #[wasm_bindgen(typescript_type = "Promise<Transaction | undefined>")]
+    pub type PromiseOptionTransaction;
+
+    #[wasm_bindgen(typescript_type = "AccountsList")]
+    pub type AccountsList;
+
+    #[wasm_bindgen(typescript_type = "Promise<AccountsList>")]
+    pub type PromiseAccountsList;
 
     #[wasm_bindgen(typescript_type = "PollingMethod")]
     pub type PollingMethod;

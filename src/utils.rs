@@ -60,6 +60,7 @@ impl Default for ObjectBuilder {
 }
 
 #[wasm_bindgen]
+#[derive(Default)]
 pub struct ClockWithOffset {
     #[wasm_bindgen(skip)]
     pub inner: Arc<nt_utils::ClockWithOffset>,
@@ -69,9 +70,7 @@ pub struct ClockWithOffset {
 impl ClockWithOffset {
     #[wasm_bindgen(constructor)]
     pub fn new() -> ClockWithOffset {
-        Self {
-            inner: Arc::new(Default::default()),
-        }
+        Self::default()
     }
 
     #[wasm_bindgen(js_name = "updateOffset")]
@@ -89,6 +88,10 @@ impl ClockWithOffset {
     pub fn clone_inner(&self) -> Arc<nt_utils::ClockWithOffset> {
         self.inner.clone()
     }
+}
+
+pub fn parse_hash(hash: &str) -> Result<ton_types::UInt256, JsValue> {
+    ton_types::UInt256::from_str(hash).handle_error()
 }
 
 pub fn parse_public_key(public_key: &str) -> Result<ed25519_dalek::PublicKey, JsValue> {
