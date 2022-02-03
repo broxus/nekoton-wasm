@@ -83,31 +83,6 @@ pub fn make_last_transaction_id(data: nt_abi::LastTransactionId) -> LastTransact
         .unchecked_into()
 }
 
-pub fn parse_last_transaction_id(
-    data: LastTransactionId,
-) -> Result<nt_abi::LastTransactionId, JsValue> {
-    #[derive(serde::Deserialize)]
-    #[serde(rename_all = "camelCase")]
-    struct ParsedLastTransactionId {
-        is_exact: bool,
-        lt: String,
-        hash: Option<String>,
-    }
-
-    let ParsedLastTransactionId { is_exact, lt, hash } =
-        JsValue::into_serde::<ParsedLastTransactionId>(&data).handle_error()?;
-    let lt = u64::from_str(&lt).handle_error()?;
-
-    Ok(match (is_exact, hash) {
-        (true, Some(hash)) => {
-            let hash = ton_types::UInt256::from_str(&hash).handle_error()?;
-            nt_abi::LastTransactionId::Exact(nt_abi::TransactionId { lt, hash })
-        }
-        (false, None) => nt_abi::LastTransactionId::Inexact { latest_lt: lt },
-        _ => return Err(ModelError::InvalidLastTransactionId).handle_error(),
-    })
-}
-
 #[wasm_bindgen(typescript_custom_section)]
 const CONTRACT_STATE: &str = r#"
 export type ContractState = {
@@ -115,6 +90,7 @@ export type ContractState = {
     genTimings: GenTimings,
     lastTransactionId?: LastTransactionId,
     isDeployed: boolean,
+    codeHash?: string,
 };
 "#;
 
@@ -127,6 +103,12 @@ pub fn make_contract_state(data: models::ContractState) -> ContractState {
             data.last_transaction_id.map(make_last_transaction_id),
         )
         .set("isDeployed", data.is_deployed)
+        .set(
+            "codeHash",
+            data.code_hash
+                .as_ref()
+                .map(ton_types::UInt256::to_hex_string),
+        )
         .build()
         .unchecked_into()
 }
@@ -744,8 +726,6 @@ extern "C" {
 
 #[derive(thiserror::Error, Debug)]
 enum ModelError {
-    #[error("Invalid last transaction id")]
-    InvalidLastTransactionId,
     #[error("Invalid transaction id")]
     InvalidTransactionId,
 }

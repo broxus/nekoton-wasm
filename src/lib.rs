@@ -1,3 +1,5 @@
+#![allow(clippy::unused_unit)]
+
 use std::collections::HashMap;
 use std::convert::TryFrom;
 
@@ -27,26 +29,26 @@ pub fn check_address(address: &str) -> bool {
 #[wasm_bindgen(js_name = "runLocal")]
 pub fn run_local(
     clock: &ClockWithOffset,
-    last_transaction_id: LastTransactionId,
     account_stuff_boc: &str,
     contract_abi: &str,
     method: &str,
     input: TokensObject,
+    responsible: bool,
 ) -> Result<ExecutionOutput, JsValue> {
-    let last_transaction_id = parse_last_transaction_id(last_transaction_id)?;
     let account_stuff = parse_account_stuff(account_stuff_boc)?;
     let contract_abi = parse_contract_abi(contract_abi)?;
     let method = contract_abi.function(method).handle_error()?;
     let input = parse_tokens_object(&method.inputs, input).handle_error()?;
 
-    let output = method
-        .run_local(
-            clock.inner.as_ref(),
-            account_stuff,
-            &last_transaction_id,
-            &input,
-        )
-        .handle_error()?;
+    let output = if responsible {
+        method
+            .run_local_responsible(clock.inner.as_ref(), account_stuff, &input)
+            .handle_error()?
+    } else {
+        method
+            .run_local(clock.inner.as_ref(), account_stuff, &input)
+            .handle_error()?
+    };
 
     make_execution_output(output)
 }
