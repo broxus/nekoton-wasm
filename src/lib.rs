@@ -84,8 +84,7 @@ pub fn get_expected_address(
 #[wasm_bindgen(js_name = "getBocHash")]
 pub fn get_boc_hash(boc: &str) -> Result<String, JsValue> {
     let body = base64::decode(boc).handle_error()?;
-    let cell =
-        ton_types::deserialize_tree_of_cells(&mut std::io::Cursor::new(body)).handle_error()?;
+    let cell = ton_types::deserialize_tree_of_cells(&mut body.as_slice()).handle_error()?;
     Ok(cell.repr_hash().to_hex_string())
 }
 
@@ -107,8 +106,7 @@ pub fn unpack_from_cell(
 ) -> Result<TokensObject, JsValue> {
     let params = parse_params_list(params).handle_error()?;
     let body = base64::decode(boc).handle_error()?;
-    let cell =
-        ton_types::deserialize_tree_of_cells(&mut std::io::Cursor::new(body)).handle_error()?;
+    let cell = ton_types::deserialize_tree_of_cells(&mut body.as_slice()).handle_error()?;
     nt_abi::unpack_from_cell(&params, cell.into(), allow_partial)
         .handle_error()
         .and_then(make_tokens_object)
@@ -124,7 +122,7 @@ pub fn extract_public_key(boc: &str) -> Result<String, JsValue> {
 #[wasm_bindgen(js_name = "codeToTvc")]
 pub fn code_to_tvc(code: &str) -> Result<String, JsValue> {
     let cell = base64::decode(code).handle_error()?;
-    ton_types::deserialize_tree_of_cells(&mut std::io::Cursor::new(cell))
+    ton_types::deserialize_tree_of_cells(&mut cell.as_slice())
         .handle_error()
         .and_then(|x| nt_abi::code_to_tvc(x).handle_error())
         .and_then(|x| x.serialize().handle_error())

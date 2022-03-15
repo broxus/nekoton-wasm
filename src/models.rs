@@ -550,8 +550,7 @@ pub fn parse_signed_message(data: SignedMessage) -> Result<nt::crypto::SignedMes
     {
         Some(boc) => {
             let body = base64::decode(boc).handle_error()?;
-            let cell = ton_types::deserialize_tree_of_cells(&mut std::io::Cursor::new(&body))
-                .handle_error()?;
+            let cell = ton_types::deserialize_tree_of_cells(&mut body.as_slice()).handle_error()?;
             ton_block::Message::construct_from_cell(cell).handle_error()?
         }
         None => return Err(TokensJsonError::StringExpected).handle_error(),
