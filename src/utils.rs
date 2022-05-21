@@ -109,11 +109,32 @@ pub fn parse_slice(boc: &str) -> Result<ton_types::SliceData, JsValue> {
 }
 
 pub fn parse_account_stuff(boc: &str) -> Result<ton_block::AccountStuff, JsValue> {
-    ton_block::AccountStuff::construct_from_base64(boc).handle_error()
+    use ton_block::MaybeDeserialize;
+
+    let bytes = base64::decode(boc).handle_error()?;
+    ton_types::deserialize_tree_of_cells(&mut bytes.as_slice())
+        .and_then(|cell| {
+            let slice = &mut cell.into();
+            Ok(ton_block::AccountStuff {
+                addr: Deserializable::construct_from(slice)?,
+                storage_stat: Deserializable::construct_from(slice)?,
+                storage: ton_block::AccountStorage {
+                    last_trans_lt: Deserializable::construct_from(slice)?,
+                    balance: Deserializable::construct_from(slice)?,
+                    state: Deserializable::construct_from(slice)?,
+                    init_code_hash: if slice.remaining_bits() > 0 {
+                        ton_types::UInt256::read_maybe_from(slice)?
+                    } else {
+                        None
+                    },
+                },
+            })
+        })
+        .handle_error()
 }
 
 pub fn parse_contract_abi(contract_abi: &str) -> Result<ton_abi::Contract, JsValue> {
-    ton_abi::Contract::load(&mut std::io::Cursor::new(contract_abi)).handle_error()
+    ton_abi::Contract::load(&mut contract_abi.as_bytes()).handle_error()
 }
 
 #[wasm_bindgen(typescript_custom_section)]

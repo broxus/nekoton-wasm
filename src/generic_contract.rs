@@ -48,6 +48,8 @@ impl GenericContract {
         let inner = self.inner.clone();
         let message = parse_signed_message(message)?;
 
+        // NOTE: method must be called through the external mutex
+        #[allow(clippy::await_holding_lock)]
         Ok(JsCast::unchecked_into(future_to_promise(async move {
             let mut contract = inner.contract.lock().trust_me();
 
@@ -67,6 +69,8 @@ impl GenericContract {
         let inner = self.inner.clone();
         let message = parse_signed_message(message)?;
 
+        // NOTE: method must be called through the external mutex
+        #[allow(clippy::await_holding_lock)]
         Ok(JsCast::unchecked_into(future_to_promise(async move {
             let mut contract = inner.contract.lock().trust_me();
 
@@ -82,6 +86,8 @@ impl GenericContract {
     pub fn refresh(&mut self) -> PromiseVoid {
         let inner = self.inner.clone();
 
+        // NOTE: method must be called through the external mutex
+        #[allow(clippy::await_holding_lock)]
         JsCast::unchecked_into(future_to_promise(async move {
             let mut contract = inner.contract.lock().trust_me();
 
@@ -94,6 +100,8 @@ impl GenericContract {
     pub fn handle_block(&mut self, block_id: String) -> PromiseVoid {
         let inner = self.inner.clone();
 
+        // NOTE: method must be called through the external mutex
+        #[allow(clippy::await_holding_lock)]
         JsCast::unchecked_into(future_to_promise(async move {
             let block = inner.transport.get_block(&block_id).await?;
 
@@ -113,6 +121,8 @@ impl GenericContract {
 
         let inner = self.inner.clone();
 
+        // NOTE: method must be called through the external mutex
+        #[allow(clippy::await_holding_lock)]
         Ok(JsCast::unchecked_into(future_to_promise(async move {
             let mut contract = inner.contract.lock().trust_me();
 

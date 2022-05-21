@@ -1,13 +1,20 @@
 [package]
 name = "nekoton-wasm"
-version = "0.1.12"
-edition = "2018"
+version = "0.1.15"
+edition = "2021"
 authors = ["Ivan Kalinin <i.kalinin@dexpa.io>"]
 description = "Nekoton bindings for WASM"
 license-file = "LICENSE"
 
 [lib]
 crate-type = ["cdylib"]
+
+[profile.release]
+lto = true
+panic = "abort"
+incremental = false
+codegen-units = 1
+opt-level = "z"
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ["-Oz", "--enable-mutable-globals"]
@@ -18,23 +25,15 @@ async-trait = "0.1"
 hex = "0.4"
 base64 = "0.13"
 chrono = "0.4"
-console_error_panic_hook = "0.1"
-dyn-clone = "1.0"
-futures = "0.3"
 js-sys = "0.3"
 num-bigint = "0.3"
 num-traits = "0.2"
-parking_lot = "0.12"
 rand = { version = "0.8", features = ["getrandom"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-sha2 = "0.9"
-syn = "=1.0.72"
 thiserror = "1.0"
-tokio = { version = "1.17.0", features = ["sync"] }
 wasm-bindgen = { version = "0.2.79", features = ["serde-serialize"] }
 wasm-bindgen-futures = "0.4"
 getrandom = { version = "0.2", features = ["js"] }
+tokio = { version = "1", features = ["sync"] }
 
 ed25519-dalek = { git = "https://github.com/broxus/ed25519-dalek.git" }
 

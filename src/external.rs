@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use futures::channel::oneshot;
+use tokio::sync::oneshot;
 use wasm_bindgen::prelude::*;
 
 pub struct GqlConnectionImpl {
