@@ -114,7 +114,7 @@ pub fn unpack_from_cell(
 
 #[wasm_bindgen(js_name = "extractPublicKey")]
 pub fn extract_public_key(boc: &str) -> Result<String, JsValue> {
-    crate::utils::parse_account_stuff(boc)
+    parse_account_stuff(boc)
         .and_then(|x| nt_abi::extract_public_key(&x).handle_error())
         .map(hex::encode)
 }
