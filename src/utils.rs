@@ -95,17 +95,68 @@ pub fn parse_hash(hash: &str) -> Result<ton_types::UInt256, JsValue> {
 }
 
 pub fn parse_public_key(public_key: &str) -> Result<ed25519_dalek::PublicKey, JsValue> {
-    ed25519_dalek::PublicKey::from_bytes(&hex::decode(&public_key).handle_error()?).handle_error()
+    ed25519_dalek::PublicKey::from_bytes(&parse_hex_bytes(public_key.trim()).handle_error()?)
+        .handle_error()
+}
+
+pub fn parse_signature(signature: &str) -> Result<ed25519_dalek::Signature, JsValue> {
+    let signature = parse_base64_or_hex_bytes(signature).handle_error()?;
+    match ed25519_dalek::Signature::try_from(signature.as_slice()) {
+        Ok(signature) => Ok(signature),
+        Err(_) => Err("Invalid signature. Expected 64 bytes").handle_error(),
+    }
 }
 
 pub fn parse_address(address: &str) -> Result<MsgAddressInt, JsValue> {
-    MsgAddressInt::from_str(address).handle_error()
+    MsgAddressInt::from_str(address.trim()).handle_error()
 }
 
-pub fn parse_slice(boc: &str) -> Result<ton_types::SliceData, JsValue> {
-    let body = base64::decode(boc).handle_error()?;
-    let cell = ton_types::deserialize_tree_of_cells(&mut body.as_slice()).handle_error()?;
-    Ok(cell.into())
+pub fn parse_cell_slice(boc: &str) -> Result<ton_types::SliceData, JsValue> {
+    parse_cell(boc).map(From::from)
+}
+
+pub fn parse_cell(boc: &str) -> Result<ton_types::Cell, JsValue> {
+    let boc = boc.trim();
+    if boc.is_empty() {
+        Ok(ton_types::Cell::default())
+    } else {
+        let body = base64::decode(boc).handle_error()?;
+        ton_types::deserialize_tree_of_cells(&mut body.as_slice()).handle_error()
+    }
+}
+
+pub fn parse_hex_or_base64_bytes(data: &str) -> Result<Vec<u8>, hex::FromHexError> {
+    let data = data.trim();
+    if data.is_empty() {
+        return Ok(Default::default());
+    }
+
+    match parse_hex_bytes(data) {
+        Ok(signature) => Ok(signature),
+        Err(e) => match base64::decode(data) {
+            Ok(signature) => Ok(signature),
+            Err(_) => Err(e),
+        },
+    }
+}
+
+pub fn parse_base64_or_hex_bytes(data: &str) -> Result<Vec<u8>, base64::DecodeError> {
+    let data = data.trim();
+    if data.is_empty() {
+        return Ok(Default::default());
+    }
+
+    match base64::decode(data) {
+        Ok(signature) => Ok(signature),
+        Err(e) => match parse_hex_bytes(data) {
+            Ok(signature) => Ok(signature),
+            Err(_) => Err(e),
+        },
+    }
+}
+
+pub fn parse_hex_bytes(data: &str) -> Result<Vec<u8>, hex::FromHexError> {
+    hex::decode(data.strip_prefix("0x").unwrap_or(data))
 }
 
 pub fn parse_account_stuff(boc: &str) -> Result<ton_block::AccountStuff, JsValue> {

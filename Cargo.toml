@@ -1,6 +1,6 @@
 [package]
 name = "nekoton-wasm"
-version = "0.1.16"
+version = "0.2.0"
 edition = "2021"
 authors = ["Ivan Kalinin <i.kalinin@dexpa.io>"]
 description = "Nekoton bindings for WASM"
@@ -22,18 +22,19 @@ wasm-opt = ["-Oz", "--enable-mutable-globals"]
 [dependencies]
 anyhow = "1.0"
 async-trait = "0.1"
-hex = "0.4"
 base64 = "0.13"
-chrono = "0.4"
+getrandom = { version = "0.2", features = ["js"] }
+hex = "0.4"
 js-sys = "0.3"
 num-bigint = "0.3"
 num-traits = "0.2"
 rand = { version = "0.8", features = ["getrandom"] }
+sha2 = "0.9.9"
 thiserror = "1.0"
+tokio = { version = "1", features = ["sync"] }
 wasm-bindgen = { version = "0.2.79", features = ["serde-serialize"] }
 wasm-bindgen-futures = "0.4"
-getrandom = { version = "0.2", features = ["js"] }
-tokio = { version = "1", features = ["sync"] }
+zeroize = "1"
 
 ed25519-dalek = { git = "https://github.com/broxus/ed25519-dalek.git" }
 

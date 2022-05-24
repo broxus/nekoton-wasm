@@ -167,7 +167,6 @@ pub fn make_message(data: models::Message) -> Message {
 const PENDING_TRANSACTION: &str = r#"
 export type PendingTransaction = {
     messageHash: string,
-    bodyHash: string,
     src?: string,
     expireAt: number,
 };
@@ -504,11 +503,51 @@ pub fn make_latest_block(latest_block: nt::transport::gql::LatestBlock) -> JsVal
         .build()
 }
 
+#[wasm_bindgen]
+pub struct UnsignedMessage {
+    #[wasm_bindgen(skip)]
+    pub inner: Box<dyn nt::crypto::UnsignedMessage>,
+}
+
+#[wasm_bindgen]
+impl UnsignedMessage {
+    #[wasm_bindgen(js_name = "refreshTimeout")]
+    pub fn refresh_timeout(&mut self, clock: &ClockWithOffset) {
+        self.inner.refresh_timeout(clock.inner.as_ref());
+    }
+
+    #[wasm_bindgen(js_name = "expireAt")]
+    pub fn expire_at(&self) -> u32 {
+        self.inner.expire_at()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn hash(&self) -> String {
+        hex::encode(nt::crypto::UnsignedMessage::hash(self.inner.as_ref()))
+    }
+
+    #[wasm_bindgen]
+    pub fn sign(&self, signature: &str) -> Result<SignedMessage, JsValue> {
+        let signature = parse_signature(signature)?.to_bytes();
+        self.inner
+            .sign(&signature)
+            .handle_error()
+            .and_then(make_signed_message)
+    }
+
+    #[wasm_bindgen(js_name = "signFake")]
+    pub fn sign_fake(&self) -> Result<SignedMessage, JsValue> {
+        self.inner
+            .sign(&[0; 64])
+            .handle_error()
+            .and_then(make_signed_message)
+    }
+}
+
 #[wasm_bindgen(typescript_custom_section)]
 const SIGNED_MESSAGE: &str = r#"
 export type SignedMessage = {
     hash: string,
-    bodyHash: string,
     expireAt: number,
     boc: string,
 };
@@ -525,14 +564,6 @@ pub fn make_signed_message(data: nt::crypto::SignedMessage) -> Result<SignedMess
 
     Ok(ObjectBuilder::new()
         .set("hash", hash.to_hex_string())
-        .set(
-            "bodyHash",
-            data.message
-                .body()
-                .map(|body| body.into_cell().repr_hash())
-                .unwrap_or_default()
-                .to_hex_string(),
-        )
         .set("expireAt", data.expire_at)
         .set("boc", boc)
         .build()
@@ -549,7 +580,7 @@ pub fn parse_signed_message(data: SignedMessage) -> Result<nt::crypto::SignedMes
         .as_string()
     {
         Some(boc) => {
-            let body = base64::decode(boc).handle_error()?;
+            let body = base64::decode(boc.trim()).handle_error()?;
             let cell = ton_types::deserialize_tree_of_cells(&mut body.as_slice()).handle_error()?;
             ton_block::Message::construct_from_cell(cell).handle_error()?
         }
@@ -579,6 +610,49 @@ pub fn make_polling_method(s: models::PollingMethod) -> PollingMethod {
         models::PollingMethod::Reliable => "reliable",
     })
     .unchecked_into()
+}
+
+#[wasm_bindgen(typescript_custom_section)]
+const ED25519_KEY_PAIR: &'static str = r#"
+export type Ed25519KeyPair = {
+    publicKey: string,
+    secretKey: string,
+};
+"#;
+
+pub fn make_ed25519_key_pair(data: ed25519_dalek::Keypair) -> Ed25519KeyPair {
+    ObjectBuilder::new()
+        .set("publicKey", hex::encode(data.public.as_bytes()))
+        .set("secretKey", hex::encode(data.secret.as_bytes()))
+        .build()
+        .unchecked_into()
+}
+
+#[wasm_bindgen(typescript_custom_section)]
+const EXTENDED_SIGNATURE: &str = r#"
+export type ExtendedSignature = {
+    signature: string,
+    signatureHex: string,
+    signatureParts: {
+        high: string,
+        low: string,
+    }
+};
+"#;
+
+pub fn make_extended_signature(signature: [u8; 64]) -> ExtendedSignature {
+    ObjectBuilder::new()
+        .set("signature", base64::encode(signature))
+        .set("signatureHex", hex::encode(signature))
+        .set(
+            "signatureParts",
+            ObjectBuilder::new()
+                .set("high", format!("0x{}", hex::encode(&signature[..32])))
+                .set("low", format!("0x{}", hex::encode(&signature[32..])))
+                .build(),
+        )
+        .build()
+        .unchecked_into()
 }
 
 #[wasm_bindgen(typescript_custom_section)]
@@ -721,6 +795,12 @@ extern "C" {
 
     #[wasm_bindgen(typescript_type = "Promise<FullContractState | undefined>")]
     pub type PromiseOptionFullContractState;
+
+    #[wasm_bindgen(typescript_type = "Ed25519KeyPair")]
+    pub type Ed25519KeyPair;
+
+    #[wasm_bindgen(typescript_type = "ExtendedSignature")]
+    pub type ExtendedSignature;
 }
 
 #[derive(thiserror::Error, Debug)]

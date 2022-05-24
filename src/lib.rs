@@ -1,14 +1,15 @@
 #![allow(clippy::unused_unit)]
 
+use std::borrow::Cow;
 use std::collections::HashMap;
-use std::convert::TryFrom;
 
-use ed25519_dalek::Verifier;
+use ed25519_dalek::{Signer, Verifier};
 use nt_abi::FunctionExt;
-use nt_utils::TrustMe;
+use nt_utils::{Clock, TrustMe};
 use ton_block::{Deserializable, GetRepresentationHash, MsgAddressInt, Serializable};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::{JsCast, JsValue};
+use zeroize::Zeroize;
 
 use crate::models::*;
 use crate::tokens_object::*;
@@ -83,9 +84,7 @@ pub fn get_expected_address(
 
 #[wasm_bindgen(js_name = "getBocHash")]
 pub fn get_boc_hash(boc: &str) -> Result<String, JsValue> {
-    let body = base64::decode(boc).handle_error()?;
-    let cell = ton_types::deserialize_tree_of_cells(&mut body.as_slice()).handle_error()?;
-    Ok(cell.repr_hash().to_hex_string())
+    Ok(parse_cell(boc)?.repr_hash().to_hex_string())
 }
 
 #[wasm_bindgen(js_name = "packIntoCell")]
@@ -105,9 +104,8 @@ pub fn unpack_from_cell(
     allow_partial: bool,
 ) -> Result<TokensObject, JsValue> {
     let params = parse_params_list(params).handle_error()?;
-    let body = base64::decode(boc).handle_error()?;
-    let cell = ton_types::deserialize_tree_of_cells(&mut body.as_slice()).handle_error()?;
-    nt_abi::unpack_from_cell(&params, cell.into(), allow_partial)
+    let cell = parse_cell_slice(boc)?;
+    nt_abi::unpack_from_cell(&params, cell, allow_partial)
         .handle_error()
         .and_then(make_tokens_object)
 }
@@ -121,7 +119,7 @@ pub fn extract_public_key(boc: &str) -> Result<String, JsValue> {
 
 #[wasm_bindgen(js_name = "codeToTvc")]
 pub fn code_to_tvc(code: &str) -> Result<String, JsValue> {
-    let cell = base64::decode(code).handle_error()?;
+    let cell = base64::decode(code.trim()).handle_error()?;
     ton_types::deserialize_tree_of_cells(&mut cell.as_slice())
         .handle_error()
         .and_then(|x| nt_abi::code_to_tvc(x).handle_error())
@@ -183,7 +181,7 @@ pub fn decode_input(
     internal: bool,
 ) -> Result<Option<DecodedInput>, JsValue> {
     let contract = parse_contract_abi(contract_abi)?;
-    let message_body = parse_slice(message_body)?;
+    let message_body = parse_cell_slice(message_body)?;
     let method = parse_method_name(method)?;
     let (method, data) =
         match nt_abi::decode_input(&contract, message_body, &method, internal).handle_error()? {
@@ -207,7 +205,7 @@ pub fn decode_event(
     event: MethodName,
 ) -> Result<Option<DecodedEvent>, JsValue> {
     let contract = parse_contract_abi(contract_abi)?;
-    let message_body = parse_slice(message_body)?;
+    let message_body = parse_cell_slice(message_body)?;
     let name = parse_method_name(event)?;
     let (event, data) = match nt_abi::decode_event(&contract, message_body, &name).handle_error()? {
         Some(event) => event,
@@ -230,7 +228,7 @@ pub fn decode_output(
     method: MethodName,
 ) -> Result<Option<DecodedOutput>, JsValue> {
     let contract = parse_contract_abi(contract_abi)?;
-    let message_body = parse_slice(message_body)?;
+    let message_body = parse_cell_slice(message_body)?;
     let method = parse_method_name(method)?;
     let (method, data) =
         match nt_abi::decode_output(&contract, message_body, &method).handle_error()? {
@@ -269,7 +267,7 @@ pub fn decode_transaction(
 
     let body_key = JsValue::from_str("body");
     let in_msg_body = match js_sys::Reflect::get(&in_msg, &body_key)?.as_string() {
-        Some(body) => parse_slice(&body)?,
+        Some(body) => parse_cell_slice(&body)?,
         None => return Ok(None),
     };
 
@@ -300,7 +298,7 @@ pub fn decode_transaction(
 
             Some(
                 match js_sys::Reflect::get(&message, &body_key).map(|item| item.as_string()) {
-                    Ok(Some(body)) => parse_slice(&body),
+                    Ok(Some(body)) => parse_cell_slice(&body),
                     Ok(None) => Err(TokensJsonError::MessageBodyExpected).handle_error(),
                     Err(error) => Err(error),
                 },
@@ -351,7 +349,7 @@ pub fn decode_transaction_events(
 
             Some(
                 match js_sys::Reflect::get(&message, &body_key).map(|item| item.as_string()) {
-                    Ok(Some(body)) => parse_slice(&body),
+                    Ok(Some(body)) => parse_cell_slice(&body),
                     Ok(None) => return None,
                     Err(error) => Err(error),
                 },
@@ -381,35 +379,53 @@ pub fn decode_transaction_events(
     Ok(events.unchecked_into())
 }
 
+#[wasm_bindgen(js_name = "getDataHash")]
+pub fn get_hash(data: &str) -> Result<String, JsValue> {
+    use sha2::Digest;
+
+    let body = parse_base64_or_hex_bytes(data).handle_error()?;
+    Ok(hex::encode(sha2::Sha256::digest(&body)))
+}
+
+#[wasm_bindgen(js_name = "ed25519_generateKeyPair")]
+pub fn generate_ed25519_key_pair() -> Result<Ed25519KeyPair, JsValue> {
+    let key_pair = ed25519_dalek::Keypair::generate(&mut rand::thread_rng());
+    Ok(make_ed25519_key_pair(key_pair))
+}
+
+#[wasm_bindgen(js_name = "ed25519_sign")]
+pub fn sign_data(secret_key: &str, data: &str) -> Result<String, JsValue> {
+    let data = parse_hex_or_base64_bytes(data).handle_error()?;
+
+    let mut secret_key = parse_hex_or_base64_bytes(secret_key).handle_error()?;
+    let secret = ed25519_dalek::SecretKey::from_bytes(&secret_key).handle_error()?;
+    secret_key.zeroize();
+
+    let public = ed25519_dalek::PublicKey::from(&secret);
+    let key_pair = ed25519_dalek::Keypair { secret, public };
+    let signature = key_pair.sign(&data);
+    Ok(base64::encode(signature.to_bytes()))
+}
+
+#[wasm_bindgen(js_name = "extendSignature")]
+pub fn extend_signature(signature: &str) -> Result<ExtendedSignature, JsValue> {
+    let signature = parse_signature(signature)?;
+    Ok(make_extended_signature(signature.to_bytes()))
+}
+
 #[wasm_bindgen(js_name = "verifySignature")]
 pub fn verify_signature(public_key: &str, data: &str, signature: &str) -> Result<bool, JsValue> {
     let public_key = parse_public_key(public_key)?;
 
-    let data = match hex::decode(data) {
-        Ok(data) => data,
-        Err(e) => match base64::decode(data) {
-            Ok(data) => data,
-            Err(_) => return Err(e).handle_error(),
-        },
-    };
-
-    let signature = match base64::decode(signature) {
-        Ok(signature) => signature,
-        Err(e) => match hex::decode(signature) {
-            Ok(signature) => signature,
-            Err(_) => return Err(e).handle_error(),
-        },
-    };
-    let signature = match ed25519_dalek::Signature::try_from(signature.as_slice()) {
-        Ok(signature) => signature,
-        Err(_) => return Err("Invalid signature. Expected 64 bytes").handle_error(),
-    };
+    let data = parse_hex_or_base64_bytes(data).handle_error()?;
+    let signature = parse_signature(signature)?;
 
     Ok(public_key.verify(&data, &signature).is_ok())
 }
 
 #[wasm_bindgen(js_name = "createExternalMessageWithoutSignature")]
 pub fn create_unsigned_message_without_signature(
+    clock: &ClockWithOffset,
     dst: &str,
     contract_abi: &str,
     method: &str,
@@ -431,7 +447,7 @@ pub fn create_unsigned_message_without_signature(
     let input = parse_tokens_object(&method.inputs, input).handle_error()?;
 
     // Prepare headers
-    let time = chrono::Utc::now().timestamp_millis() as u64;
+    let time = clock.inner.now_ms_u64();
     let expire_at = ExpireAt::new_from_millis(Expiration::Timeout(timeout), time);
 
     let mut header = HashMap::with_capacity(3);
@@ -462,5 +478,50 @@ pub fn create_unsigned_message_without_signature(
     make_signed_message(nt::crypto::SignedMessage {
         message,
         expire_at: expire_at.timestamp,
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+#[wasm_bindgen(js_name = "createExternalMessage")]
+pub fn create_external_message(
+    clock: &ClockWithOffset,
+    dst: &str,
+    contract_abi: &str,
+    method: &str,
+    state_init: Option<String>,
+    input: TokensObject,
+    public_key: &str,
+    timeout: u32,
+) -> Result<UnsignedMessage, JsValue> {
+    let dst = parse_address(dst)?;
+    let contract_abi = parse_contract_abi(contract_abi)?;
+    let method = contract_abi.function(method).handle_error()?;
+    let state_init = state_init
+        .as_deref()
+        .map(ton_block::StateInit::construct_from_base64)
+        .transpose()
+        .handle_error()?;
+    let input = parse_tokens_object(&method.inputs, input).handle_error()?;
+    let public_key = parse_public_key(public_key)?;
+
+    let mut message =
+        ton_block::Message::with_ext_in_header(ton_block::ExternalInboundMessageHeader {
+            dst,
+            ..Default::default()
+        });
+    if let Some(state_init) = state_init {
+        message.set_state_init(state_init);
+    }
+
+    Ok(UnsignedMessage {
+        inner: nt::core::utils::make_labs_unsigned_message(
+            clock.inner.as_ref(),
+            message,
+            nt::core::models::Expiration::Timeout(timeout),
+            &public_key,
+            Cow::Owned(method.clone()),
+            input,
+        )
+        .handle_error()?,
     })
 }

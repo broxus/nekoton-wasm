@@ -317,12 +317,7 @@ pub fn parse_token_value(
         }
         ton_abi::ParamType::Bytes => {
             let value = if let Some(value) = value.as_string() {
-                let value = value.trim();
-                if value.is_empty() {
-                    Ok(Vec::new())
-                } else {
-                    base64::decode(value).map_err(|_| TokensJsonError::InvalidBytes)
-                }
+                parse_base64_or_hex_bytes(&value).map_err(|_| TokensJsonError::InvalidBytes)
             } else {
                 Err(TokensJsonError::StringExpected)
             }?;
@@ -335,8 +330,7 @@ pub fn parse_token_value(
         }
         &ton_abi::ParamType::FixedBytes(size) => {
             let value = if let Some(value) = value.as_string() {
-                let value = value.trim();
-                base64::decode(value).map_err(|_| TokensJsonError::InvalidBytes)
+                parse_base64_or_hex_bytes(&value).map_err(|_| TokensJsonError::InvalidBytes)
             } else {
                 Err(TokensJsonError::StringExpected)
             }?;
@@ -416,7 +410,7 @@ pub fn parse_token_value(
                 if value.is_empty() {
                     Ok(None)
                 } else {
-                    hex::decode(value.strip_prefix("0x").unwrap_or(value))
+                    parse_hex_bytes(value)
                         .map_err(|_| TokensJsonError::InvalidPublicKey)
                         .and_then(|value| {
                             ed25519_dalek::PublicKey::from_bytes(&value)
