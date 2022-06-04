@@ -46,9 +46,9 @@ checksum = "eab1c04a571841102f5345a8fc0f6bb3d31c315dec879b5c6e42e40ce7ffa34e"
 
 [[package]]
 name = "async-trait"
-version = "0.1.53"
+version = "0.1.56"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed6aa3524a2dfcf9fe180c51eae2b58738348d819517ceadf95789c51fff7600"
+checksum = "96cf8829f67d2eab0b2dfa42c5d0ef737e0724e4a82b01b3e292456202b19716"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -111,9 +111,9 @@ dependencies = [
 
 [[package]]
 name = "bumpalo"
-version = "3.9.1"
+version = "3.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4a45a46ab1f2412e53d3a0ade76ffad2025804294569aae387231a0cd6e0899"
+checksum = "37ccbd214614c6783386c1af30caf03192f17891059cecc394b4fb119e363de3"
 
 [[package]]
 name = "byteorder"
@@ -180,6 +180,12 @@ dependencies = [
  "memchr",
  "unreachable",
 ]
+
+[[package]]
+name = "convert_case"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
 
 [[package]]
 name = "countme"
@@ -252,13 +258,27 @@ dependencies = [
 
 [[package]]
 name = "dashmap"
-version = "5.3.3"
+version = "5.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "391b56fbd302e585b7a9494fb70e40949567b1cf9003a8e4a6041a1687c26573"
+checksum = "3495912c9c1ccf2e18976439f4443f3fee0fd61f424ff99fde6a66b15ecb448f"
 dependencies = [
  "cfg-if",
  "hashbrown",
  "lock_api",
+ "parking_lot_core",
+]
+
+[[package]]
+name = "derive_more"
+version = "0.99.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4fb810d30a7c1953f91334de7244731fc3f3c10d7fe163338a35b9f640960321"
+dependencies = [
+ "convert_case",
+ "proc-macro2",
+ "quote",
+ "rustc_version",
+ "syn",
 ]
 
 [[package]]
@@ -610,9 +630,9 @@ checksum = "93c0d11ac30a033511ae414355d80f70d9f29a44a49140face477117a1ee90db"
 
 [[package]]
 name = "miniz_oxide"
-version = "0.5.1"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2b29bd4bc3f33391105ebee3589c19197c4271e3e5a9ec9bfe8127eeff8f082"
+checksum = "6f5c75688da582b8ffc1f1799e9db273f32133c49e048f614d22ec3256773ccc"
 dependencies = [
  "adler",
 ]
@@ -620,7 +640,7 @@ dependencies = [
 [[package]]
 name = "nekoton"
 version = "0.10.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=master#ef18dba24c093f9e472f07c81bbc665fda3961bc"
+source = "git+https://github.com/broxus/nekoton.git?branch=master#8f690c3a62398a1684721dfb88ce41ae791bc543"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -651,6 +671,7 @@ dependencies = [
  "thiserror",
  "tiny-bip39",
  "tiny-hderive",
+ "tiny-jsonrpc",
  "tokio",
  "ton_abi",
  "ton_block",
@@ -662,7 +683,7 @@ dependencies = [
 [[package]]
 name = "nekoton-abi"
 version = "0.11.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=master#ef18dba24c093f9e472f07c81bbc665fda3961bc"
+source = "git+https://github.com/broxus/nekoton.git?branch=master#8f690c3a62398a1684721dfb88ce41ae791bc543"
 dependencies = [
  "anyhow",
  "base64",
@@ -687,7 +708,7 @@ dependencies = [
 [[package]]
 name = "nekoton-contracts"
 version = "0.10.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=master#ef18dba24c093f9e472f07c81bbc665fda3961bc"
+source = "git+https://github.com/broxus/nekoton.git?branch=master#8f690c3a62398a1684721dfb88ce41ae791bc543"
 dependencies = [
  "anyhow",
  "nekoton-abi",
@@ -701,7 +722,7 @@ dependencies = [
 [[package]]
 name = "nekoton-derive"
 version = "0.10.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=master#ef18dba24c093f9e472f07c81bbc665fda3961bc"
+source = "git+https://github.com/broxus/nekoton.git?branch=master#8f690c3a62398a1684721dfb88ce41ae791bc543"
 dependencies = [
  "either",
  "proc-macro2",
@@ -712,7 +733,7 @@ dependencies = [
 [[package]]
 name = "nekoton-utils"
 version = "0.10.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=master#ef18dba24c093f9e472f07c81bbc665fda3961bc"
+source = "git+https://github.com/broxus/nekoton.git?branch=master#8f690c3a62398a1684721dfb88ce41ae791bc543"
 dependencies = [
  "anyhow",
  "base64",
@@ -733,7 +754,7 @@ dependencies = [
 
 [[package]]
 name = "nekoton-wasm"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -858,9 +879,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.11.0"
+version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b10983b38c53aebdf33f542c6275b0f58a238129d00c4ae0e6fb59738d783ca"
+checksum = "7709cef83f0c1f58f666e746a08b21e0085f7440fa6a29cc194d68aac97a4225"
 dependencies = [
  "parking_lot_core",
 ]
@@ -873,9 +894,9 @@ checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
 
 [[package]]
 name = "parking_lot"
-version = "0.12.0"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87f5ec2493a61ac0506c0f4199f99070cbe83857b0337006a30f3e6719b8ef58"
+checksum = "3742b2c103b9f06bc9fff0a37ff4912935851bee6d36f3c02bcc755bcfec228f"
 dependencies = [
  "lock_api",
  "parking_lot_core",
@@ -1016,6 +1037,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 
 [[package]]
+name = "rustc_version"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bfa0f585226d2e68097d4f95d113b15b83a82e819ab25717ec0590d9584ef366"
+dependencies = [
+ "semver",
+]
+
+[[package]]
 name = "ryu"
 version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1036,6 +1066,12 @@ dependencies = [
  "libc",
  "serde",
 ]
+
+[[package]]
+name = "semver"
+version = "1.0.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8cb243bdfdb5936c8dc3c45762a19d12ab4550cdc753bc247637d4ec35a040fd"
 
 [[package]]
 name = "serde"
@@ -1113,9 +1149,9 @@ checksum = "734676eb262c623cec13c3155096e08d1f8f29adce39ba17948b18dad1e54142"
 
 [[package]]
 name = "syn"
-version = "1.0.95"
+version = "1.0.96"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fbaf6116ab8924f39d52792136fb74fd60a80194cf1b1c6ffa6453eef1c3f942"
+checksum = "0748dd251e24453cb8717f0354206b91557e4ec8703673a4b30208f2abaf1ebf"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1184,6 +1220,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "tiny-jsonrpc"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "188386153834d944dcb96dd9586133c3cc0899570c7418401e4b69e19034ec5d"
+dependencies = [
+ "anyhow",
+ "derive_more",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "tinyvec"
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1200,9 +1249,9 @@ checksum = "cda74da7e1a664f795bb1f8a87ec406fb89a02522cf6e50620d016add6dbbf5c"
 
 [[package]]
 name = "tokio"
-version = "1.18.2"
+version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4903bf0427cf68dddd5aa6a93220756f8be0c34fcfa9f5e6191e103e15a31395"
+checksum = "0f392c8f16bda3456c0b00c6de39cb100449b98de55ac41c6cdd2bfcf53a1245"
 dependencies = [
  "pin-project-lite",
 ]
@@ -1210,7 +1259,7 @@ dependencies = [
 [[package]]
 name = "ton_abi"
 version = "2.1.0"
-source = "git+https://github.com/broxus/ton-labs-abi.git#4926538e5608b0f79725fb06117584a56f673213"
+source = "git+https://github.com/broxus/ton-labs-abi.git#58dab4e5779e5d463667e903a84c5ee8f8b47174"
 dependencies = [
  "anyhow",
  "base64",
@@ -1233,7 +1282,7 @@ dependencies = [
 [[package]]
 name = "ton_block"
 version = "1.7.14"
-source = "git+https://github.com/broxus/ton-labs-block.git#9d3c9ae30139c29b3130c767c7d1533d478d3583"
+source = "git+https://github.com/broxus/ton-labs-block.git#ecfc067a4345eb46ef837702f8bba8ebd3c65437"
 dependencies = [
  "anyhow",
  "base64",

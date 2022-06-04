@@ -1,39 +1,200 @@
 use std::sync::Arc;
 
 use wasm_bindgen::prelude::*;
+use wasm_bindgen::JsCast;
+use wasm_bindgen_futures::*;
 
+use crate::generic_contract::*;
 use crate::models::*;
-use crate::utils::HandleError;
+use crate::utils::*;
 
 pub mod gql;
-
-pub trait IntoHandle: Sized {
-    fn into_handle(self) -> TransportHandle;
-}
+pub mod jrpc;
 
 #[derive(Clone)]
 pub enum TransportHandle {
     GraphQl(Arc<nt::transport::gql::GqlTransport>),
-    Adnl(Arc<dyn nt::transport::Transport>),
+    Jrpc(Arc<nt::transport::jrpc::JrpcTransport>),
 }
 
 impl TransportHandle {
-    pub fn transport(&self) -> &dyn nt::transport::Transport {
-        match self {
-            Self::GraphQl(transport) => transport.as_ref(),
-            Self::Adnl(transport) => transport.as_ref(),
-        }
-    }
-
-    pub fn info(&self) -> TransportInfo {
-        make_transport_info(self.transport().info())
-    }
-
     pub async fn get_block(&self, block_id: &str) -> Result<ton_block::Block, JsValue> {
         match self {
             Self::GraphQl(transport) => transport.get_block(block_id).await.handle_error(),
-            Self::Adnl(_) => Err(TransportError::MethodNotSupported).handle_error(),
+            Self::Jrpc(_) => Err(TransportError::MethodNotSupported).handle_error(),
         }
+    }
+}
+
+impl<'a> AsRef<dyn nt::transport::Transport + 'a> for TransportHandle {
+    fn as_ref(&self) -> &(dyn nt::transport::Transport + 'a) {
+        match self {
+            Self::GraphQl(transport) => transport.as_ref(),
+            Self::Jrpc(transport) => transport.as_ref(),
+        }
+    }
+}
+
+impl From<TransportHandle> for Arc<dyn nt::transport::Transport> {
+    fn from(handle: TransportHandle) -> Self {
+        match handle {
+            TransportHandle::GraphQl(transport) => transport,
+            TransportHandle::Jrpc(transport) => transport,
+        }
+    }
+}
+
+#[wasm_bindgen]
+pub struct Transport {
+    #[wasm_bindgen(skip)]
+    pub handle: TransportHandle,
+    #[wasm_bindgen(skip)]
+    pub clock: Arc<nt_utils::ClockWithOffset>,
+}
+
+#[wasm_bindgen]
+impl Transport {
+    #[wasm_bindgen(js_name = "fromGqlConnection")]
+    pub fn from_gql_connection(gql: &gql::GqlConnection) -> Transport {
+        let transport = Arc::new(nt::transport::gql::GqlTransport::new(gql.inner.clone()));
+        Self {
+            handle: TransportHandle::GraphQl(transport),
+            clock: gql.clock.clone(),
+        }
+    }
+
+    #[wasm_bindgen(js_name = "fromJrpcConnection")]
+    pub fn from_jrpc_connection(jrpc: &jrpc::JrpcConnection) -> Transport {
+        let transport = Arc::new(nt::transport::jrpc::JrpcTransport::new(jrpc.inner.clone()));
+        Self {
+            handle: TransportHandle::Jrpc(transport),
+            clock: jrpc.clock.clone(),
+        }
+    }
+
+    #[wasm_bindgen(js_name = "subscribeToGenericContract")]
+    pub fn subscribe_to_generic_contract_wallet(
+        &self,
+        address: &str,
+        handler: GenericContractSubscriptionHandlerImpl,
+    ) -> Result<PromiseGenericContract, JsValue> {
+        let address = parse_address(address)?;
+
+        let clock = self.clock.clone();
+        let handle = self.handle.clone();
+        let handler = Arc::new(GenericContractSubscriptionHandler::from(handler));
+
+        Ok(JsCast::unchecked_into(future_to_promise(async move {
+            let contract = nt::core::generic_contract::GenericContract::subscribe(
+                clock,
+                handle.clone().into(),
+                address,
+                handler,
+            )
+            .await
+            .handle_error()?;
+
+            Ok(JsValue::from(GenericContract::new(handle, contract)))
+        })))
+    }
+
+    #[wasm_bindgen(js_name = "getFullContractState")]
+    pub fn get_full_account_state(
+        &self,
+        address: &str,
+    ) -> Result<PromiseOptionFullContractState, JsValue> {
+        let address = parse_address(address)?;
+        let handle = self.handle.clone();
+
+        Ok(JsCast::unchecked_into(future_to_promise(async move {
+            make_full_contract_state(
+                handle
+                    .as_ref()
+                    .get_contract_state(&address)
+                    .await
+                    .handle_error()?,
+            )
+        })))
+    }
+
+    #[wasm_bindgen(js_name = "getAccountsByCodeHash")]
+    pub fn get_accounts_by_code_hash(
+        &self,
+        code_hash: &str,
+        limit: u8,
+        continuation: Option<String>,
+    ) -> Result<PromiseAccountsList, JsValue> {
+        let code_hash = parse_hash(code_hash)?;
+        let continuation = continuation.map(|addr| parse_address(&addr)).transpose()?;
+        let handle = self.handle.clone();
+
+        Ok(JsCast::unchecked_into(future_to_promise(async move {
+            Ok(make_accounts_list(
+                handle
+                    .as_ref()
+                    .get_accounts_by_code_hash(&code_hash, limit, &continuation)
+                    .await
+                    .handle_error()?,
+            )
+            .unchecked_into())
+        })))
+    }
+
+    #[wasm_bindgen(js_name = "getTransactions")]
+    pub fn get_transactions(
+        &self,
+        address: &str,
+        continuation: Option<TransactionId>,
+        limit: u8,
+    ) -> Result<PromiseTransactionsList, JsValue> {
+        let address = parse_address(address)?;
+        let before_lt = continuation
+            .map(parse_transaction_id)
+            .transpose()?
+            .map(|id| id.lt);
+        let handle = self.handle.clone();
+
+        Ok(JsCast::unchecked_into(future_to_promise(async move {
+            let raw_transactions = handle
+                .as_ref()
+                .get_transactions(
+                    address,
+                    nt_abi::TransactionId {
+                        lt: before_lt.unwrap_or(u64::MAX),
+                        hash: Default::default(),
+                    },
+                    limit,
+                )
+                .await
+                .handle_error()?;
+            Ok(make_transactions_list(raw_transactions).unchecked_into())
+        })))
+    }
+
+    #[wasm_bindgen(js_name = "getTransaction")]
+    pub fn get_transaction(&self, hash: &str) -> Result<PromiseOptionTransaction, JsValue> {
+        let hash = parse_hash(hash)?;
+        let handle = self.handle.clone();
+
+        Ok(JsCast::unchecked_into(future_to_promise(async move {
+            Ok(
+                match handle
+                    .as_ref()
+                    .get_transaction(&hash)
+                    .await
+                    .handle_error()?
+                {
+                    Some(transaction) => nt::core::models::Transaction::try_from((
+                        transaction.hash,
+                        transaction.data,
+                    ))
+                    .map(make_transaction)
+                    .handle_error()?
+                    .unchecked_into(),
+                    None => JsValue::undefined(),
+                },
+            )
+        })))
     }
 }
 

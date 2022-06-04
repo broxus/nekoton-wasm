@@ -460,26 +460,6 @@ export type AbiParam = {
 };
 "#;
 
-#[wasm_bindgen(typescript_custom_section)]
-const TRANSPORT_INFO: &'static str = r#"
-export type ReliableBehavior =
-    | 'intensive_polling'
-    | 'block_walking';
-
-export type TransportInfo = {
-    maxTransactionsPerFetch: number;
-    reliableBehavior: ReliableBehavior;
-};
-"#;
-
-pub fn make_transport_info(data: nt::transport::TransportInfo) -> TransportInfo {
-    ObjectBuilder::new()
-        .set("maxTransactionsPerFetch", data.max_transactions_per_fetch)
-        .set("reliableBehavior", data.reliable_behavior.to_string())
-        .build()
-        .unchecked_into()
-}
-
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(typescript_type = "Promise<GenericContract>")]
@@ -783,9 +763,6 @@ extern "C" {
 
     #[wasm_bindgen(typescript_type = "Array<AbiParam>")]
     pub type ParamsList;
-
-    #[wasm_bindgen(typescript_type = "TransportInfo")]
-    pub type TransportInfo;
 
     #[wasm_bindgen(typescript_type = "Promise<LatestBlock>")]
     pub type PromiseLatestBlock;

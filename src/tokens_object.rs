@@ -11,7 +11,7 @@ use crate::models::*;
 use crate::utils::*;
 
 pub fn insert_init_data(
-    contract_abi: &ton_abi::Contract,
+    contract_abi: ton_abi::Contract,
     data: ton_types::SliceData,
     public_key: &Option<ed25519_dalek::PublicKey>,
     tokens: TokensObject,
@@ -31,12 +31,12 @@ pub fn insert_init_data(
         .handle_error()?;
     }
 
-    if !contract_abi.data().is_empty() {
+    if !contract_abi.data.is_empty() {
         if !tokens.is_object() {
             return Err(TokensJsonError::ObjectExpected).handle_error();
         }
 
-        for (param_name, param) in contract_abi.data() {
+        for (param_name, param) in contract_abi.data {
             let value = js_sys::Reflect::get(&tokens, &JsValue::from_str(param_name.as_str()))
                 .map_err(|_| TokensJsonError::ParameterNotFound(param_name.clone()))
                 .handle_error()?;

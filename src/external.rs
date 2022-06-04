@@ -90,3 +90,72 @@ pub enum GqlQueryError {
     #[error("Request failed")]
     RequestFailed,
 }
+
+unsafe impl Send for JrpcSender {}
+unsafe impl Sync for JrpcSender {}
+
+#[wasm_bindgen]
+extern "C" {
+    pub type JrpcSender;
+    #[wasm_bindgen(method)]
+    pub fn send(this: &JrpcSender, data: &str, query: JrpcQuery);
+}
+
+#[derive(Clone)]
+pub struct JrpcConnector {
+    sender: Arc<JrpcSender>,
+}
+
+impl JrpcConnector {
+    pub fn new(sender: JrpcSender) -> Self {
+        Self {
+            sender: Arc::new(sender),
+        }
+    }
+}
+
+#[wasm_bindgen]
+pub struct JrpcQuery {
+    #[wasm_bindgen(skip)]
+    pub tx: oneshot::Sender<JrpcQueryResult>,
+}
+
+pub type JrpcQueryResult = Result<String, JrpcError>;
+
+#[derive(thiserror::Error, Debug)]
+pub enum JrpcError {
+    #[error("Request dropped unexpectedly")]
+    RequestDropped,
+    #[error("Timeout reached")]
+    TimeoutReached,
+    #[error("Request failed")]
+    RequestFailed,
+}
+
+#[wasm_bindgen]
+impl JrpcQuery {
+    #[wasm_bindgen(js_name = "onReceive")]
+    pub fn on_receive(self, data: String) {
+        let _ = self.tx.send(Ok(data));
+    }
+
+    #[wasm_bindgen(js_name = "onError")]
+    pub fn on_error(self, _: JsValue) {
+        let _ = self.tx.send(Err(JrpcError::RequestFailed));
+    }
+
+    #[wasm_bindgen(js_name = "onTimeout")]
+    pub fn on_timeout(self) {
+        let _ = self.tx.send(Err(JrpcError::TimeoutReached));
+    }
+}
+
+#[async_trait::async_trait]
+impl nt::external::JrpcConnection for JrpcConnector {
+    async fn post(&self, data: &str) -> Result<String> {
+        let (tx, rx) = oneshot::channel();
+        let query = JrpcQuery { tx };
+        self.sender.send(data, query);
+        Ok(rx.await.unwrap_or(Err(JrpcError::RequestFailed))?)
+    }
+}

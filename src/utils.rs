@@ -185,7 +185,7 @@ pub fn parse_account_stuff(boc: &str) -> Result<ton_block::AccountStuff, JsValue
 }
 
 pub fn parse_contract_abi(contract_abi: &str) -> Result<ton_abi::Contract, JsValue> {
-    ton_abi::Contract::load(&mut contract_abi.as_bytes()).handle_error()
+    ton_abi::Contract::load(contract_abi).handle_error()
 }
 
 #[wasm_bindgen(typescript_custom_section)]

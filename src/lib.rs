@@ -67,7 +67,7 @@ pub fn get_expected_address(
     let public_key = public_key.as_deref().map(parse_public_key).transpose()?;
 
     state_init.data = if let Some(data) = state_init.data.take() {
-        Some(insert_init_data(&contract_abi, data.into(), &public_key, init_data)?.into_cell())
+        Some(insert_init_data(contract_abi, data.into(), &public_key, init_data)?.into_cell())
     } else {
         None
     };
