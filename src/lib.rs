@@ -5,8 +5,8 @@ use std::collections::HashMap;
 
 use ed25519_dalek::{Signer, Verifier};
 use nt_abi::FunctionExt;
-use nt_utils::{Clock, TrustMe};
-use ton_block::{Deserializable, GetRepresentationHash, MsgAddressInt, Serializable};
+use nt_utils::Clock;
+use ton_block::{Deserializable, Serializable};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::{JsCast, JsValue};
 use zeroize::Zeroize;
@@ -61,7 +61,7 @@ pub fn get_expected_address(
     workchain_id: i8,
     public_key: Option<String>,
     init_data: TokensObject,
-) -> Result<String, JsValue> {
+) -> Result<JsValue, JsValue> {
     let mut state_init = ton_block::StateInit::construct_from_base64(tvc).handle_error()?;
     let contract_abi = parse_contract_abi(contract_abi)?;
     let public_key = public_key.as_deref().map(parse_public_key).transpose()?;
@@ -72,14 +72,19 @@ pub fn get_expected_address(
         None
     };
 
-    let hash = state_init.hash().trust_me();
+    let cell = state_init.serialize().handle_error()?;
+    let repr_hash = cell.repr_hash().to_hex_string();
 
-    Ok(MsgAddressInt::AddrStd(ton_block::MsgAddrStd {
-        anycast: None,
-        workchain_id,
-        address: hash.into(),
-    })
-    .to_string())
+    Ok(ObjectBuilder::new()
+        .set(
+            "tvc",
+            ton_types::serialize_toc(&cell)
+                .map(base64::encode)
+                .handle_error()?,
+        )
+        .set("address", format!("{workchain_id}:{repr_hash}"))
+        .build()
+        .unchecked_into())
 }
 
 #[wasm_bindgen(js_name = "getBocHash")]
@@ -166,28 +171,6 @@ pub fn split_tvc(tvc: &str) -> Result<StateInit, JsValue> {
         .set("code", code)
         .build()
         .unchecked_into())
-}
-
-#[wasm_bindgen(js_name = "updateTvc")]
-pub fn update_tvc(
-    tvc: &str,
-    contract_abi: &str,
-    public_key: Option<String>,
-    init_data: TokensObject,
-) -> Result<String, JsValue> {
-    let mut state_init = ton_block::StateInit::construct_from_base64(tvc).handle_error()?;
-    let contract_abi = parse_contract_abi(contract_abi)?;
-    let public_key = public_key.as_deref().map(parse_public_key).transpose()?;
-
-    state_init.data = if let Some(data) = state_init.data.take() {
-        Some(insert_init_data(contract_abi, data.into(), &public_key, init_data)?.into_cell())
-    } else {
-        None
-    };
-
-    let cell = state_init.serialize().handle_error()?;
-    let bytes = ton_types::serialize_toc(&cell).handle_error()?;
-    Ok(base64::encode(&bytes))
 }
 
 #[wasm_bindgen(js_name = "setCodeSalt")]
