@@ -61,7 +61,7 @@ pub fn get_expected_address(
     workchain_id: i8,
     public_key: Option<String>,
     init_data: TokensObject,
-) -> Result<JsValue, JsValue> {
+) -> Result<ExpectedAddress, JsValue> {
     let mut state_init = ton_block::StateInit::construct_from_base64(tvc).handle_error()?;
     let contract_abi = parse_contract_abi(contract_abi)?;
     let public_key = public_key.as_deref().map(parse_public_key).transpose()?;
@@ -77,7 +77,7 @@ pub fn get_expected_address(
 
     Ok(ObjectBuilder::new()
         .set(
-            "tvc",
+            "stateInit",
             ton_types::serialize_toc(&cell)
                 .map(base64::encode)
                 .handle_error()?,

@@ -326,6 +326,14 @@ export type StateInit = {
 "#;
 
 #[wasm_bindgen(typescript_custom_section)]
+const EXPECTED_ADDRESS: &str = r#"
+export type ExpectedAddress = {
+    stateInit: string;
+    address: string;
+};
+"#;
+
+#[wasm_bindgen(typescript_custom_section)]
 const DECODED_INPUT: &str = r#"
 export type DecodedInput = {
     method: string,
@@ -736,6 +744,9 @@ extern "C" {
 
     #[wasm_bindgen(typescript_type = "StateInit")]
     pub type StateInit;
+
+    #[wasm_bindgen(typescript_type = "ExpectedAddress")]
+    pub type ExpectedAddress;
 
     #[wasm_bindgen(typescript_type = "DecodedInput")]
     pub type DecodedInput;
