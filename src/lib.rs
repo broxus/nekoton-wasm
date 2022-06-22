@@ -112,20 +112,33 @@ pub fn unpack_from_cell(
 
 #[wasm_bindgen(js_name = "extractPublicKey")]
 pub fn extract_public_key(boc: &str) -> Result<String, JsValue> {
-    parse_account_stuff(boc)
-        .and_then(|x| nt_abi::extract_public_key(&x).handle_error())
+    let account_stuff = parse_account_stuff(boc)?;
+    nt_abi::extract_public_key(&account_stuff)
         .map(hex::encode)
+        .handle_error()
 }
 
 #[wasm_bindgen(js_name = "codeToTvc")]
 pub fn code_to_tvc(code: &str) -> Result<String, JsValue> {
-    let cell = base64::decode(code.trim()).handle_error()?;
-    ton_types::deserialize_tree_of_cells(&mut cell.as_slice())
-        .handle_error()
-        .and_then(|x| nt_abi::code_to_tvc(x).handle_error())
-        .and_then(|x| x.serialize().handle_error())
-        .and_then(|x| ton_types::serialize_toc(&x).handle_error())
+    let cell = parse_cell(code)?;
+    nt_abi::code_to_tvc(cell)
+        .and_then(|x| x.serialize())
+        .and_then(|x| ton_types::serialize_toc(&x))
         .map(base64::encode)
+        .handle_error()
+}
+
+#[wasm_bindgen(js_name = "mergeTvc")]
+pub fn merge_tvc(code: &str, data: &str) -> Result<String, JsValue> {
+    let state_init = ton_block::StateInit {
+        code: Some(parse_cell(code)?),
+        data: Some(parse_cell(data)?),
+        ..Default::default()
+    };
+
+    let cell = state_init.serialize().handle_error()?;
+    let bytes = ton_types::serialize_toc(&cell).handle_error()?;
+    Ok(base64::encode(&bytes))
 }
 
 #[wasm_bindgen(js_name = "splitTvc")]
@@ -153,6 +166,36 @@ pub fn split_tvc(tvc: &str) -> Result<StateInit, JsValue> {
         .set("code", code)
         .build()
         .unchecked_into())
+}
+
+#[wasm_bindgen(js_name = "updateTvc")]
+pub fn update_tvc(
+    tvc: &str,
+    contract_abi: &str,
+    public_key: Option<String>,
+    init_data: TokensObject,
+) -> Result<String, JsValue> {
+    let mut state_init = ton_block::StateInit::construct_from_base64(tvc).handle_error()?;
+    let contract_abi = parse_contract_abi(contract_abi)?;
+    let public_key = public_key.as_deref().map(parse_public_key).transpose()?;
+
+    state_init.data = if let Some(data) = state_init.data.take() {
+        Some(insert_init_data(contract_abi, data.into(), &public_key, init_data)?.into_cell())
+    } else {
+        None
+    };
+
+    let cell = state_init.serialize().handle_error()?;
+    let bytes = ton_types::serialize_toc(&cell).handle_error()?;
+    Ok(base64::encode(&bytes))
+}
+
+#[wasm_bindgen(js_name = "setCodeSalt")]
+pub fn set_code_salt(code: &str, salt: &str) -> Result<String, JsValue> {
+    nt_abi::set_code_salt(parse_cell(code)?, parse_cell(salt)?)
+        .and_then(|cell| ton_types::serialize_toc(&cell))
+        .map(base64::encode)
+        .handle_error()
 }
 
 #[wasm_bindgen(js_name = "encodeInternalInput")]
