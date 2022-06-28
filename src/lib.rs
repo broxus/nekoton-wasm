@@ -117,9 +117,48 @@ pub fn unpack_from_cell(
 
 #[wasm_bindgen(js_name = "extractPublicKey")]
 pub fn extract_public_key(boc: &str) -> Result<String, JsValue> {
+    use nt::core::ton_wallet::{highload_wallet_v2, wallet_v3};
+
     let account_stuff = parse_account_stuff(boc)?;
-    nt_abi::extract_public_key(&account_stuff)
+
+    let state_init = match &account_stuff.storage.state {
+        ton_block::AccountState::AccountActive { state_init, .. } => state_init,
+        _ => return Err(nt_abi::ExtractionError::AccountIsNotActive).handle_error(),
+    };
+    let data = match &state_init.data {
+        Some(data) => data,
+        None => return Err(nt_abi::ExtractionError::AccountDataNotFound).handle_error(),
+    };
+
+    if let Some(code) = &state_init.code {
+        let code_hash = code.repr_hash();
+        if wallet_v3::is_wallet_v3(&code_hash) {
+            return wallet_v3::InitData::try_from(data)
+                .handle_error()
+                .and_then(|init_data| {
+                    ed25519_dalek::PublicKey::from_bytes(init_data.public_key.as_slice())
+                        .map(hex::encode)
+                        .handle_error()
+                });
+        } else if highload_wallet_v2::is_highload_wallet_v2(&code_hash) {
+            return highload_wallet_v2::InitData::try_from(data)
+                .handle_error()
+                .and_then(|init_data| {
+                    ed25519_dalek::PublicKey::from_bytes(init_data.public_key.as_slice())
+                        .map(hex::encode)
+                        .handle_error()
+                });
+        }
+    }
+
+    let data = ton_types::SliceData::from(data)
+        .get_next_bytes(32)
+        .map_err(|_| nt_abi::ExtractionError::CellUnderflow)
+        .handle_error()?;
+
+    ed25519_dalek::PublicKey::from_bytes(&data)
         .map(hex::encode)
+        .map_err(|_| nt_abi::ExtractionError::InvalidPublicKey)
         .handle_error()
 }
 
