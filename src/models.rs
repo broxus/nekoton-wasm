@@ -1,5 +1,4 @@
 use std::convert::TryFrom;
-use std::str::FromStr;
 
 use nt::core::models;
 use ton_block::{Deserializable, Serializable};
@@ -23,20 +22,6 @@ pub fn make_transaction_id(data: nt_abi::TransactionId) -> TransactionId {
         .set("hash", hex::encode(data.hash.as_slice()))
         .build()
         .unchecked_into()
-}
-
-pub fn parse_transaction_id(data: TransactionId) -> Result<nt_abi::TransactionId, JsValue> {
-    let lt = match js_sys::Reflect::get(&data, &JsValue::from_str("lt")).map(|lt| lt.as_string()) {
-        Ok(Some(lt)) => u64::from_str(&lt).handle_error()?,
-        _ => return Err(ModelError::InvalidTransactionId).handle_error(),
-    };
-    let hash = match js_sys::Reflect::get(&data, &JsValue::from_str("hash"))
-        .map(|hash| hash.as_string())
-    {
-        Ok(Some(hash)) => ton_types::UInt256::from_str(&hash).handle_error()?,
-        _ => return Err(ModelError::InvalidTransactionId).handle_error(),
-    };
-    Ok(nt_abi::TransactionId { lt, hash })
 }
 
 #[wasm_bindgen(typescript_custom_section)]
@@ -789,10 +774,4 @@ extern "C" {
 
     #[wasm_bindgen(typescript_type = "ExtendedSignature")]
     pub type ExtendedSignature;
-}
-
-#[derive(thiserror::Error, Debug)]
-enum ModelError {
-    #[error("Invalid transaction id")]
-    InvalidTransactionId,
 }

@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use std::sync::Arc;
 
 use wasm_bindgen::prelude::*;
@@ -90,6 +91,7 @@ impl Transport {
                 handle.clone().into(),
                 address,
                 handler,
+                false,
             )
             .await
             .handle_error()?;
@@ -144,27 +146,21 @@ impl Transport {
     pub fn get_transactions(
         &self,
         address: &str,
-        continuation: Option<TransactionId>,
+        continuation: Option<String>,
         limit: u8,
     ) -> Result<PromiseTransactionsList, JsValue> {
         let address = parse_address(address)?;
-        let before_lt = continuation
-            .map(parse_transaction_id)
-            .transpose()?
-            .map(|id| id.lt);
+        let from_lt = continuation
+            .map(|s| u64::from_str(&s))
+            .transpose()
+            .handle_error()?
+            .unwrap_or(u64::MAX);
         let handle = self.handle.clone();
 
         Ok(JsCast::unchecked_into(future_to_promise(async move {
             let raw_transactions = handle
                 .as_ref()
-                .get_transactions(
-                    address,
-                    nt_abi::TransactionId {
-                        lt: before_lt.unwrap_or(u64::MAX),
-                        hash: Default::default(),
-                    },
-                    limit,
-                )
+                .get_transactions(&address, from_lt, limit)
                 .await
                 .handle_error()?;
             Ok(make_transactions_list(raw_transactions).unchecked_into())
