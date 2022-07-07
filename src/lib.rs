@@ -223,7 +223,7 @@ pub fn set_code_salt(code: &str, salt: &str) -> Result<String, JsValue> {
 #[wasm_bindgen(js_name = "getCodeSalt")]
 pub fn get_code_salt(code: &str) -> Result<Option<String>, JsValue> {
     match nt::abi::get_code_salt(parse_cell(code)?).handle_error()? {
-        Some(salt) => Ok(Some(hex::encode(
+        Some(salt) => Ok(Some(base64::encode(
             ton_types::serialize_toc(&salt).handle_error()?,
         ))),
         None => Ok(None),
