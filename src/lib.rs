@@ -4,8 +4,8 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 
 use ed25519_dalek::{Signer, Verifier};
-use nt_abi::FunctionExt;
-use nt_utils::Clock;
+use nt::abi::FunctionExt;
+use nt::utils::Clock;
 use ton_block::{Deserializable, Serializable};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::{JsCast, JsValue};
@@ -24,7 +24,7 @@ mod utils;
 
 #[wasm_bindgen(js_name = "checkAddress")]
 pub fn check_address(address: &str) -> bool {
-    nt_utils::validate_address(address)
+    nt::utils::validate_address(address)
 }
 
 #[wasm_bindgen(js_name = "runLocal")]
@@ -97,7 +97,7 @@ pub fn pack_into_cell(params: ParamsList, tokens: TokensObject) -> Result<String
     let params = parse_params_list(params).handle_error()?;
     let tokens = parse_tokens_object(&params, tokens).handle_error()?;
 
-    let cell = nt_abi::pack_into_cell(&tokens).handle_error()?;
+    let cell = nt::abi::pack_into_cell(&tokens).handle_error()?;
     let bytes = ton_types::serialize_toc(&cell).handle_error()?;
     Ok(base64::encode(&bytes))
 }
@@ -110,7 +110,7 @@ pub fn unpack_from_cell(
 ) -> Result<TokensObject, JsValue> {
     let params = parse_params_list(params).handle_error()?;
     let cell = parse_cell_slice(boc)?;
-    nt_abi::unpack_from_cell(&params, cell, allow_partial)
+    nt::abi::unpack_from_cell(&params, cell, allow_partial)
         .handle_error()
         .and_then(make_tokens_object)
 }
@@ -123,11 +123,11 @@ pub fn extract_public_key(boc: &str) -> Result<String, JsValue> {
 
     let state_init = match &account_stuff.storage.state {
         ton_block::AccountState::AccountActive { state_init, .. } => state_init,
-        _ => return Err(nt_abi::ExtractionError::AccountIsNotActive).handle_error(),
+        _ => return Err(nt::abi::ExtractionError::AccountIsNotActive).handle_error(),
     };
     let data = match &state_init.data {
         Some(data) => data,
-        None => return Err(nt_abi::ExtractionError::AccountDataNotFound).handle_error(),
+        None => return Err(nt::abi::ExtractionError::AccountDataNotFound).handle_error(),
     };
 
     if let Some(code) = &state_init.code {
@@ -153,19 +153,19 @@ pub fn extract_public_key(boc: &str) -> Result<String, JsValue> {
 
     let data = ton_types::SliceData::from(data)
         .get_next_bytes(32)
-        .map_err(|_| nt_abi::ExtractionError::CellUnderflow)
+        .map_err(|_| nt::abi::ExtractionError::CellUnderflow)
         .handle_error()?;
 
     ed25519_dalek::PublicKey::from_bytes(&data)
         .map(hex::encode)
-        .map_err(|_| nt_abi::ExtractionError::InvalidPublicKey)
+        .map_err(|_| nt::abi::ExtractionError::InvalidPublicKey)
         .handle_error()
 }
 
 #[wasm_bindgen(js_name = "codeToTvc")]
 pub fn code_to_tvc(code: &str) -> Result<String, JsValue> {
     let cell = parse_cell(code)?;
-    nt_abi::code_to_tvc(cell)
+    nt::abi::code_to_tvc(cell)
         .and_then(|x| x.serialize())
         .and_then(|x| ton_types::serialize_toc(&x))
         .map(base64::encode)
@@ -214,7 +214,7 @@ pub fn split_tvc(tvc: &str) -> Result<StateInit, JsValue> {
 
 #[wasm_bindgen(js_name = "setCodeSalt")]
 pub fn set_code_salt(code: &str, salt: &str) -> Result<String, JsValue> {
-    nt_abi::set_code_salt(parse_cell(code)?, parse_cell(salt)?)
+    nt::abi::set_code_salt(parse_cell(code)?, parse_cell(salt)?)
         .and_then(|cell| ton_types::serialize_toc(&cell))
         .map(base64::encode)
         .handle_error()
@@ -249,7 +249,7 @@ pub fn decode_input(
     let message_body = parse_cell_slice(message_body)?;
     let method = parse_method_name(method)?;
     let (method, data) =
-        match nt_abi::decode_input(&contract, message_body, &method, internal).handle_error()? {
+        match nt::abi::decode_input(&contract, message_body, &method, internal).handle_error()? {
             Some(method) => method,
             None => return Ok(None),
         };
@@ -272,10 +272,11 @@ pub fn decode_event(
     let contract = parse_contract_abi(contract_abi)?;
     let message_body = parse_cell_slice(message_body)?;
     let name = parse_method_name(event)?;
-    let (event, data) = match nt_abi::decode_event(&contract, message_body, &name).handle_error()? {
-        Some(event) => event,
-        None => return Ok(None),
-    };
+    let (event, data) =
+        match nt::abi::decode_event(&contract, message_body, &name).handle_error()? {
+            Some(event) => event,
+            None => return Ok(None),
+        };
 
     Ok(Some(
         ObjectBuilder::new()
@@ -296,7 +297,7 @@ pub fn decode_output(
     let message_body = parse_cell_slice(message_body)?;
     let method = parse_method_name(method)?;
     let (method, data) =
-        match nt_abi::decode_output(&contract, message_body, &method).handle_error()? {
+        match nt::abi::decode_output(&contract, message_body, &method).handle_error()? {
             Some(method) => method,
             None => return Ok(None),
         };
@@ -336,12 +337,13 @@ pub fn decode_transaction(
         None => return Ok(None),
     };
 
-    let method = match nt_abi::guess_method_by_input(&contract_abi, &in_msg_body, &method, internal)
-        .handle_error()?
-    {
-        Some(method) => method,
-        None => return Ok(None),
-    };
+    let method =
+        match nt::abi::guess_method_by_input(&contract_abi, &in_msg_body, &method, internal)
+            .handle_error()?
+        {
+            Some(method) => method,
+            None => return Ok(None),
+        };
 
     let input = method.decode_input(in_msg_body, internal).handle_error()?;
 
@@ -371,7 +373,7 @@ pub fn decode_transaction(
         })
         .collect::<Result<Vec<_>, JsValue>>()?;
 
-    let output = nt_abi::process_raw_outputs(&ext_out_msgs, method).handle_error()?;
+    let output = nt::abi::process_raw_outputs(&ext_out_msgs, method).handle_error()?;
 
     Ok(Some(
         ObjectBuilder::new()
@@ -425,7 +427,7 @@ pub fn decode_transaction_events(
     let events = ext_out_msgs
         .into_iter()
         .filter_map(|body| {
-            let id = nt_abi::read_function_id(&body).ok()?;
+            let id = nt::abi::read_function_id(&body).ok()?;
             let event = contract_abi.event_by_id(id).ok()?;
             let tokens = event.decode_input(body).ok()?;
 
@@ -588,5 +590,95 @@ pub fn create_external_message(
             input,
         )
         .handle_error()?,
+    })
+}
+
+#[wasm_bindgen(js_name = "walletPrepareTransfer")]
+pub fn wallet_prepare_transfer(
+    clock: &ClockWithOffset,
+    current_state: &str,
+    wallet_type: WalletContractType,
+    public_key: &str,
+    gifts: GiftList,
+    timeout: u32,
+) -> Result<Option<UnsignedMessage>, JsValue> {
+    use nt::core::ton_wallet;
+
+    let public_key = parse_public_key(public_key)?;
+    let current_state = parse_account_stuff(current_state)?;
+    let gifts = gifts
+        .unchecked_into::<js_sys::Array>()
+        .iter()
+        .map(|gift| parse_gift(gift.unchecked_into()))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let clock = clock.inner.as_ref();
+    let expiration = nt::core::models::Expiration::Timeout(timeout);
+
+    let contract_type = ton_wallet::WalletType::try_from(wallet_type)?;
+
+    let result = match contract_type {
+        ton_wallet::WalletType::Multisig(_) => {
+            let mut gifts = gifts.into_iter();
+            let gift = match gifts.next() {
+                Some(gift) => {
+                    if gifts.next().is_none() {
+                        gift
+                    } else {
+                        return Err("Multisig doesn't support multiple messages").handle_error();
+                    }
+                }
+                None => return Err("No messages specified").handle_error(),
+            };
+
+            match &current_state.storage.state {
+                ton_block::AccountState::AccountFrozen { .. } => {
+                    return Err("Account is frozen").handle_error()
+                }
+                ton_block::AccountState::AccountUninit => return Ok(None),
+                ton_block::AccountState::AccountActive { .. } => {}
+            };
+
+            let custodians =
+                ton_wallet::multisig::get_custodians(clock, Cow::Borrowed(&current_state))
+                    .handle_error()?;
+            if !custodians
+                .iter()
+                .any(|item| item.as_slice() == public_key.as_bytes())
+            {
+                return Err("Public key is not a custodian").handle_error();
+            }
+
+            ton_wallet::multisig::prepare_transfer(
+                clock,
+                &public_key,
+                custodians.len() > 1,
+                current_state.addr,
+                gift,
+                expiration,
+            )
+        }
+        ton_wallet::WalletType::WalletV3 => ton_wallet::wallet_v3::prepare_transfer(
+            clock,
+            &public_key,
+            &current_state,
+            gifts,
+            expiration,
+        ),
+        ton_wallet::WalletType::HighloadWalletV2 => {
+            ton_wallet::highload_wallet_v2::prepare_transfer(
+                clock,
+                &public_key,
+                &current_state,
+                gifts,
+                expiration,
+            )
+        }
+    }
+    .handle_error()?;
+
+    Ok(match result {
+        ton_wallet::TransferAction::Sign(inner) => Some(UnsignedMessage { inner }),
+        ton_wallet::TransferAction::DeployFirst => None,
     })
 }

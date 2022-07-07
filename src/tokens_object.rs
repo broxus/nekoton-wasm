@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
-use nt_utils::*;
+use nt::utils::*;
 use num_bigint::{BigInt, BigUint};
 use num_traits::Num;
 use ton_block::Serializable;

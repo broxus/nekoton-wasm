@@ -1,6 +1,8 @@
 use std::convert::TryFrom;
+use std::str::FromStr;
 
 use nt::core::models;
+use serde::Deserialize;
 use ton_block::{Deserializable, Serializable};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -16,7 +18,7 @@ export type TransactionId = {
 };
 "#;
 
-pub fn make_transaction_id(data: nt_abi::TransactionId) -> TransactionId {
+pub fn make_transaction_id(data: nt::abi::TransactionId) -> TransactionId {
     ObjectBuilder::new()
         .set("lt", data.lt.to_string())
         .set("hash", hex::encode(data.hash.as_slice()))
@@ -32,10 +34,10 @@ export type GenTimings = {
 };
 "#;
 
-pub fn make_gen_timings(data: nt_abi::GenTimings) -> GenTimings {
+pub fn make_gen_timings(data: nt::abi::GenTimings) -> GenTimings {
     let (gen_lt, gen_utime) = match data {
-        nt_abi::GenTimings::Unknown => (0, 0),
-        nt_abi::GenTimings::Known { gen_lt, gen_utime } => (gen_lt, gen_utime),
+        nt::abi::GenTimings::Unknown => (0, 0),
+        nt::abi::GenTimings::Known { gen_lt, gen_utime } => (gen_lt, gen_utime),
     };
 
     ObjectBuilder::new()
@@ -54,10 +56,10 @@ export type LastTransactionId = {
 };
 "#;
 
-pub fn make_last_transaction_id(data: nt_abi::LastTransactionId) -> LastTransactionId {
+pub fn make_last_transaction_id(data: nt::abi::LastTransactionId) -> LastTransactionId {
     let (lt, hash) = match data {
-        nt_abi::LastTransactionId::Exact(id) => (id.lt, Some(id.hash.to_hex_string())),
-        nt_abi::LastTransactionId::Inexact { latest_lt } => (latest_lt, None),
+        nt::abi::LastTransactionId::Exact(id) => (id.lt, Some(id.hash.to_hex_string())),
+        nt::abi::LastTransactionId::Inexact { latest_lt } => (latest_lt, None),
     };
 
     ObjectBuilder::new()
@@ -209,7 +211,7 @@ pub fn make_transactions_list(
     };
 
     let continuation = raw_transactions.last().and_then(|transaction| {
-        (transaction.data.prev_trans_lt != 0).then(|| nt_abi::TransactionId {
+        (transaction.data.prev_trans_lt != 0).then(|| nt::abi::TransactionId {
             lt: transaction.data.prev_trans_lt,
             hash: transaction.data.prev_trans_hash,
         })
@@ -364,7 +366,7 @@ export type ExecutionOutput = {
 };
 "#;
 
-pub fn make_execution_output(data: nt_abi::ExecutionOutput) -> Result<ExecutionOutput, JsValue> {
+pub fn make_execution_output(data: nt::abi::ExecutionOutput) -> Result<ExecutionOutput, JsValue> {
     Ok(ObjectBuilder::new()
         .set("output", data.tokens.map(make_tokens_object).transpose()?)
         .set("code", data.result_code)
@@ -377,13 +379,13 @@ const METHOD_NAME: &str = r#"
 export type MethodName = string | string[]
 "#;
 
-pub fn parse_method_name(value: MethodName) -> Result<nt_abi::MethodName, JsValue> {
+pub fn parse_method_name(value: MethodName) -> Result<nt::abi::MethodName, JsValue> {
     let value: JsValue = value.unchecked_into();
     if let Some(value) = value.as_string() {
-        Ok(nt_abi::MethodName::Known(value))
+        Ok(nt::abi::MethodName::Known(value))
     } else if js_sys::Array::is_array(&value) {
         let value: js_sys::Array = value.unchecked_into();
-        Ok(nt_abi::MethodName::GuessInRange(
+        Ok(nt::abi::MethodName::GuessInRange(
             value
                 .iter()
                 .map(|value| match value.as_string() {
@@ -671,6 +673,83 @@ pub fn make_full_contract_state(
     }
 }
 
+#[wasm_bindgen(typescript_custom_section)]
+const WALLET_CONTRACT_TYPE: &'static str = r#"
+export type WalletContractType =
+    | 'SafeMultisigWallet'
+    | 'SafeMultisigWallet24h'
+    | 'SetcodeMultisigWallet'
+    | 'SetcodeMultisigWallet24h'
+    | 'BridgeMultisigWallet'
+    | 'SurfWallet'
+    | 'WalletV3'
+    | 'HighloadWalletV2';
+"#;
+
+impl TryFrom<WalletContractType> for nt::core::ton_wallet::WalletType {
+    type Error = JsValue;
+
+    fn try_from(value: WalletContractType) -> Result<Self, Self::Error> {
+        let contract_type = JsValue::from(value)
+            .as_string()
+            .ok_or_else(|| JsValue::from_str("String with wallet contract type name expected"))?;
+
+        nt::core::ton_wallet::WalletType::from_str(&contract_type).handle_error()
+    }
+}
+
+impl From<nt::core::ton_wallet::WalletType> for WalletContractType {
+    fn from(c: nt::core::ton_wallet::WalletType) -> Self {
+        JsValue::from(c.to_string()).unchecked_into()
+    }
+}
+
+#[wasm_bindgen(typescript_custom_section)]
+const GIFT: &'static str = r#"
+export type Gift = {
+    flags: number;
+    bounce: boolean;
+    destination: string;
+    amount: string;
+    body?: string;
+    stateInit?: string;
+};
+"#;
+
+pub fn parse_gift(gift: Gift) -> Result<nt::core::ton_wallet::Gift, JsValue> {
+    #[derive(Deserialize)]
+    struct ParsedGift {
+        flags: u8,
+        bounce: bool,
+        #[serde(with = "nt::utils::serde_address")]
+        destination: ton_block::MsgAddressInt,
+        #[serde(with = "nt::utils::serde_u64")]
+        amount: u64,
+        body: Option<String>,
+        #[serde(rename = "stateInit")]
+        state_init: Option<String>,
+    }
+
+    let parsed: ParsedGift = gift.obj.into_serde().handle_error()?;
+    let body = match &parsed.body {
+        Some(body) => Some(parse_cell_slice(body)?),
+        None => None,
+    };
+    let state_init = match &parsed.state_init {
+        Some(tvc) => Some(ton_block::StateInit::construct_from_base64(tvc).handle_error()?),
+        None => None,
+    };
+
+    Ok(nt::core::ton_wallet::Gift {
+        flags: parsed.flags,
+        bounce: parsed.bounce,
+        destination: parsed.destination,
+        amount: parsed.amount,
+        body,
+        state_init,
+    })
+}
+
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(typescript_type = "TransactionId")]
@@ -774,4 +853,13 @@ extern "C" {
 
     #[wasm_bindgen(typescript_type = "ExtendedSignature")]
     pub type ExtendedSignature;
+
+    #[wasm_bindgen(typescript_type = "WalletContractType")]
+    pub type WalletContractType;
+
+    #[wasm_bindgen(typescript_type = "Gift")]
+    pub type Gift;
+
+    #[wasm_bindgen(typescript_type = "Array<Gift>")]
+    pub type GiftList;
 }

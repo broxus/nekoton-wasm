@@ -1,7 +1,7 @@
-use nt_utils::TrustMe;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
+use nt::utils::TrustMe;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::*;

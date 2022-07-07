@@ -50,7 +50,7 @@ pub struct Transport {
     #[wasm_bindgen(skip)]
     pub handle: TransportHandle,
     #[wasm_bindgen(skip)]
-    pub clock: Arc<nt_utils::ClockWithOffset>,
+    pub clock: Arc<nt::utils::ClockWithOffset>,
 }
 
 #[wasm_bindgen]

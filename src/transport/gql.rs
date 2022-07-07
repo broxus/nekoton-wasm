@@ -14,7 +14,7 @@ pub struct GqlConnection {
     #[wasm_bindgen(skip)]
     pub inner: Arc<GqlConnectionImpl>,
     #[wasm_bindgen(skip)]
-    pub clock: Arc<nt_utils::ClockWithOffset>,
+    pub clock: Arc<nt::utils::ClockWithOffset>,
 }
 
 #[wasm_bindgen]

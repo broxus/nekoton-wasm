@@ -10,7 +10,7 @@ pub struct JrpcConnection {
     #[wasm_bindgen(skip)]
     pub inner: Arc<JrpcConnector>,
     #[wasm_bindgen(skip)]
-    pub clock: Arc<nt_utils::ClockWithOffset>,
+    pub clock: Arc<nt::utils::ClockWithOffset>,
 }
 
 #[wasm_bindgen]

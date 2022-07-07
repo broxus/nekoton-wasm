@@ -5,7 +5,7 @@ use ton_block::{Deserializable, MsgAddressInt};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::{JsCast, JsValue};
 
-use nt_utils::TrustMe;
+use nt::utils::TrustMe;
 
 impl<T, E> HandleError for Result<T, E>
 where
@@ -63,7 +63,7 @@ impl Default for ObjectBuilder {
 #[derive(Default)]
 pub struct ClockWithOffset {
     #[wasm_bindgen(skip)]
-    pub inner: Arc<nt_utils::ClockWithOffset>,
+    pub inner: Arc<nt::utils::ClockWithOffset>,
 }
 
 #[wasm_bindgen]
@@ -85,7 +85,7 @@ impl ClockWithOffset {
 }
 
 impl ClockWithOffset {
-    pub fn clone_inner(&self) -> Arc<nt_utils::ClockWithOffset> {
+    pub fn clone_inner(&self) -> Arc<nt::utils::ClockWithOffset> {
         self.inner.clone()
     }
 }
