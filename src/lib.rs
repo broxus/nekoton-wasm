@@ -220,6 +220,16 @@ pub fn set_code_salt(code: &str, salt: &str) -> Result<String, JsValue> {
         .handle_error()
 }
 
+#[wasm_bindgen(js_name = "getCodeSalt")]
+pub fn get_code_salt(code: &str) -> Result<Option<String>, JsValue> {
+    match nt::abi::get_code_salt(parse_cell(code)?).handle_error()? {
+        Some(salt) => Ok(Some(hex::encode(
+            ton_types::serialize_toc(&salt).handle_error()?,
+        ))),
+        None => Ok(None),
+    }
+}
+
 #[wasm_bindgen(js_name = "encodeInternalInput")]
 pub fn encode_internal_input(
     contract_abi: &str,
