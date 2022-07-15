@@ -27,6 +27,13 @@ pub fn check_address(address: &str) -> bool {
     nt::utils::validate_address(address)
 }
 
+#[wasm_bindgen(js_name = "repackAddress")]
+pub fn repack_address(address: &str) -> Result<String, JsValue> {
+    nt::utils::repack_address(address)
+        .map(|x| x.to_string())
+        .handle_error()
+}
+
 #[wasm_bindgen(js_name = "runLocal")]
 pub fn run_local(
     clock: &ClockWithOffset,
