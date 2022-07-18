@@ -376,12 +376,14 @@ pub fn make_execution_output(data: nt::abi::ExecutionOutput) -> Result<Execution
 
 #[wasm_bindgen(typescript_custom_section)]
 const METHOD_NAME: &str = r#"
-export type MethodName = string | string[]
+export type MethodName = undefined | string | string[]
 "#;
 
 pub fn parse_method_name(value: MethodName) -> Result<nt::abi::MethodName, JsValue> {
     let value: JsValue = value.unchecked_into();
-    if let Some(value) = value.as_string() {
+    if value.is_null() || value.is_undefined() {
+        Ok(nt::abi::MethodName::Guess)
+    } else if let Some(value) = value.as_string() {
         Ok(nt::abi::MethodName::Known(value))
     } else if js_sys::Array::is_array(&value) {
         let value: js_sys::Array = value.unchecked_into();
