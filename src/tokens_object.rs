@@ -43,7 +43,7 @@ pub fn insert_init_data(
 
             let builder = parse_token_value(&param.value.kind, value)
                 .handle_error()?
-                .pack_into_chain(&ton_abi::contract::ABI_VERSION_2_0)
+                .pack_into_chain(&contract_abi.abi_version)
                 .handle_error()?;
 
             map.set_builder(param.key.write_to_new_cell().trust_me().into(), &builder)
