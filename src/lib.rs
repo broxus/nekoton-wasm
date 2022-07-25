@@ -699,3 +699,29 @@ pub fn wallet_prepare_transfer(
         ton_wallet::TransferAction::DeployFirst => None,
     })
 }
+
+#[wasm_bindgen(js_name = "highloadWalletPrepareDeploy")]
+pub fn highload_wallet_prepare_deploy(
+    clock: &ClockWithOffset,
+    public_key: &str,
+    workchain: i8,
+    expiration_timeout: u32,
+) -> Result<UnsignedMessage, JsValue> {
+    let pub_key_bytes = hex::decode(public_key).handle_error()?;
+    let public_key =
+        ed25519_dalek::PublicKey::from_bytes(pub_key_bytes.as_slice()).handle_error()?;
+    let expiration = nt::core::models::Expiration::Timeout(expiration_timeout);
+
+    let clock = clock.inner.as_ref();
+
+    let unsigned_message = nt::core::ton_wallet::highload_wallet_v2::prepare_deploy(
+        clock,
+        &public_key,
+        workchain,
+        expiration,
+    )
+    .handle_error()?;
+    Ok(UnsignedMessage {
+        inner: unsigned_message,
+    })
+}
