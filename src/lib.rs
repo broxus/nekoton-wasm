@@ -610,6 +610,20 @@ pub fn create_external_message(
     })
 }
 
+#[wasm_bindgen(js_name = "computeWalletAddress")]
+pub fn compute_wallet_address(
+    workchain: i8,
+    wallet_type: WalletContractType,
+    public_key: &str,
+) -> Result<String, JsValue> {
+    use nt::core::ton_wallet;
+
+    let contract_type = ton_wallet::WalletType::try_from(wallet_type)?;
+    let public_key = parse_public_key(public_key)?;
+    let address = ton_wallet::compute_address(&public_key, contract_type, workchain).to_string();
+    Ok(address)
+}
+
 #[wasm_bindgen(js_name = "walletPrepareTransfer")]
 pub fn wallet_prepare_transfer(
     clock: &ClockWithOffset,
