@@ -98,7 +98,7 @@ unsafe impl Sync for JrpcSender {}
 extern "C" {
     pub type JrpcSender;
     #[wasm_bindgen(method)]
-    pub fn send(this: &JrpcSender, data: &str, query: JrpcQuery);
+    pub fn send(this: &JrpcSender, data: &str, query: JrpcQuery, requires_db: bool);
 }
 
 #[derive(Clone)]
@@ -152,10 +152,12 @@ impl JrpcQuery {
 
 #[async_trait::async_trait]
 impl nt::external::JrpcConnection for JrpcConnector {
-    async fn post(&self, data: &str) -> Result<String> {
+    async fn post(&self, req: nt::external::JrpcRequest) -> Result<String> {
         let (tx, rx) = oneshot::channel();
         let query = JrpcQuery { tx };
-        self.sender.send(data, query);
+        self.sender.send(&req.data, query, req.requires_db);
+        drop(req);
+
         Ok(rx.await.unwrap_or(Err(JrpcError::RequestFailed))?)
     }
 }
