@@ -507,6 +507,39 @@ pub fn verify_signature(public_key: &str, data: &str, signature: &str) -> Result
     Ok(public_key.verify(&data, &signature).is_ok())
 }
 
+#[wasm_bindgen(js_name = "createRawExternalMessageWithoutSignature")]
+pub fn create_raw_unsigned_message_without_signature(
+    dst: &str,
+    state_init: Option<String>,
+    body: Option<String>,
+    expire_at: u32,
+) -> Result<SignedMessage, JsValue> {
+    // Parse params
+    let dst = parse_address(dst)?;
+    let state_init = state_init
+        .as_deref()
+        .map(ton_block::StateInit::construct_from_base64)
+        .transpose()
+        .handle_error()?;
+
+    // Build message
+    let mut message =
+        ton_block::Message::with_ext_in_header(ton_block::ExternalInboundMessageHeader {
+            dst,
+            ..Default::default()
+        });
+
+    if let Some(state_init) = state_init {
+        message.set_state_init(state_init);
+    }
+    if let Some(body) = body {
+        message.set_body(parse_cell_slice(&body)?);
+    }
+
+    // Serialize message
+    make_signed_message(nt::crypto::SignedMessage { message, expire_at })
+}
+
 #[wasm_bindgen(js_name = "createExternalMessageWithoutSignature")]
 pub fn create_unsigned_message_without_signature(
     clock: &ClockWithOffset,
