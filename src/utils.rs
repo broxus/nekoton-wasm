@@ -73,6 +73,13 @@ impl ClockWithOffset {
         Self::default()
     }
 
+    #[wasm_bindgen(getter, js_name = "nowMs")]
+    pub fn now_ms(&self) -> f64 {
+        use nt::utils::Clock;
+
+        self.inner.now_ms_f64()
+    }
+
     #[wasm_bindgen(js_name = "updateOffset")]
     pub fn update_offset(&self, offset_ms: f64) {
         self.inner.update_offset(offset_ms as i64)
