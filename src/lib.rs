@@ -2,6 +2,7 @@
 
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::str::FromStr;
 
 use ed25519_dalek::{Signer, Verifier};
 use nt::abi::FunctionExt;
@@ -261,6 +262,49 @@ pub fn encode_internal_input(
         .handle_error()?;
     let body = ton_types::serialize_toc(&body).handle_error()?;
     Ok(base64::encode(&body))
+}
+
+#[wasm_bindgen(js_name = "encodeInternalMessage")]
+pub fn encode_internal_message(
+    src: Option<String>,
+    dst: &str,
+    bounce: bool,
+    state_init: Option<String>,
+    body: Option<String>,
+    amount: &str,
+) -> Result<String, JsValue> {
+    let src = match src {
+        Some(src) => ton_block::MsgAddressIntOrNone::Some(parse_address(&src)?),
+        None => ton_block::MsgAddressIntOrNone::None,
+    };
+
+    let dst = parse_address(dst)?;
+
+    let amount = u64::from_str(amount)
+        .map_err(|_| "Invalid amount")
+        .handle_error()?;
+
+    let mut message = ton_block::Message::with_int_header(ton_block::InternalMessageHeader {
+        ihr_disabled: true,
+        bounce,
+        src,
+        dst,
+        value: amount.into(),
+        ..Default::default()
+    });
+
+    if let Some(state_init) = state_init {
+        message.set_state_init(parse_state_init(&state_init)?);
+    }
+    if let Some(body) = body {
+        message.set_body(parse_cell_slice(&body)?);
+    }
+
+    message
+        .serialize()
+        .and_then(|cell| ton_types::serialize_toc(&cell))
+        .map(base64::encode)
+        .handle_error()
 }
 
 #[wasm_bindgen(js_name = "decodeInput")]
@@ -524,11 +568,6 @@ pub fn create_raw_external_message(
 ) -> Result<SignedMessage, JsValue> {
     // Parse params
     let dst = parse_address(dst)?;
-    let state_init = state_init
-        .as_deref()
-        .map(ton_block::StateInit::construct_from_base64)
-        .transpose()
-        .handle_error()?;
 
     // Build message
     let mut message =
@@ -538,7 +577,7 @@ pub fn create_raw_external_message(
         });
 
     if let Some(state_init) = state_init {
-        message.set_state_init(state_init);
+        message.set_state_init(parse_state_init(&state_init)?);
     }
     if let Some(body) = body {
         message.set_body(parse_cell_slice(&body)?);
@@ -564,11 +603,6 @@ pub fn create_external_message_without_signature(
     let dst = parse_address(dst)?;
     let contract_abi = parse_contract_abi(contract_abi)?;
     let method = contract_abi.function(method).handle_error()?;
-    let state_init = state_init
-        .as_deref()
-        .map(ton_block::StateInit::construct_from_base64)
-        .transpose()
-        .handle_error()?;
     let input = parse_tokens_object(&method.inputs, input).handle_error()?;
 
     // Prepare headers
@@ -595,7 +629,7 @@ pub fn create_external_message_without_signature(
             ..Default::default()
         });
     if let Some(state_init) = state_init {
-        message.set_state_init(state_init);
+        message.set_state_init(parse_state_init(&state_init)?);
     }
     message.set_body(body.into());
 
@@ -621,11 +655,6 @@ pub fn create_external_message(
     let dst = parse_address(dst)?;
     let contract_abi = parse_contract_abi(contract_abi)?;
     let method = contract_abi.function(method).handle_error()?;
-    let state_init = state_init
-        .as_deref()
-        .map(ton_block::StateInit::construct_from_base64)
-        .transpose()
-        .handle_error()?;
     let input = parse_tokens_object(&method.inputs, input).handle_error()?;
     let public_key = parse_public_key(public_key)?;
 
@@ -635,7 +664,7 @@ pub fn create_external_message(
             ..Default::default()
         });
     if let Some(state_init) = state_init {
-        message.set_state_init(state_init);
+        message.set_state_init(parse_state_init(&state_init)?);
     }
 
     Ok(UnsignedMessage {

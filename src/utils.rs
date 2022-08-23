@@ -136,6 +136,10 @@ pub fn parse_address(address: &str) -> Result<MsgAddressInt, JsValue> {
     MsgAddressInt::from_str(address.trim()).handle_error()
 }
 
+pub fn parse_state_init(state_init: &str) -> Result<ton_block::StateInit, JsValue> {
+    ton_block::StateInit::construct_from_base64(state_init).handle_error()
+}
+
 pub fn parse_cell_slice(boc: &str) -> Result<ton_types::SliceData, JsValue> {
     parse_cell(boc).map(From::from)
 }
