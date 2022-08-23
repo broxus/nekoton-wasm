@@ -1,8 +1,6 @@
 use std::convert::TryFrom;
-use std::str::FromStr;
 
 use nt::core::models;
-use serde::Deserialize;
 use ton_block::{Deserializable, Serializable};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -687,83 +685,6 @@ pub fn make_full_contract_state(
     }
 }
 
-#[wasm_bindgen(typescript_custom_section)]
-const WALLET_CONTRACT_TYPE: &'static str = r#"
-export type WalletContractType =
-    | 'SafeMultisigWallet'
-    | 'SafeMultisigWallet24h'
-    | 'SetcodeMultisigWallet'
-    | 'SetcodeMultisigWallet24h'
-    | 'BridgeMultisigWallet'
-    | 'SurfWallet'
-    | 'WalletV3'
-    | 'HighloadWalletV2';
-"#;
-
-impl TryFrom<WalletContractType> for nt::core::ton_wallet::WalletType {
-    type Error = JsValue;
-
-    fn try_from(value: WalletContractType) -> Result<Self, Self::Error> {
-        let contract_type = JsValue::from(value)
-            .as_string()
-            .ok_or_else(|| JsValue::from_str("String with wallet contract type name expected"))?;
-
-        nt::core::ton_wallet::WalletType::from_str(&contract_type).handle_error()
-    }
-}
-
-impl From<nt::core::ton_wallet::WalletType> for WalletContractType {
-    fn from(c: nt::core::ton_wallet::WalletType) -> Self {
-        JsValue::from(c.to_string()).unchecked_into()
-    }
-}
-
-#[wasm_bindgen(typescript_custom_section)]
-const GIFT: &'static str = r#"
-export type Gift = {
-    flags: number;
-    bounce: boolean;
-    destination: string;
-    amount: string;
-    body?: string;
-    stateInit?: string;
-};
-"#;
-
-pub fn parse_gift(gift: Gift) -> Result<nt::core::ton_wallet::Gift, JsValue> {
-    #[derive(Deserialize)]
-    struct ParsedGift {
-        flags: u8,
-        bounce: bool,
-        #[serde(with = "nt::utils::serde_address")]
-        destination: ton_block::MsgAddressInt,
-        #[serde(with = "nt::utils::serde_u64")]
-        amount: u64,
-        body: Option<String>,
-        #[serde(rename = "stateInit")]
-        state_init: Option<String>,
-    }
-
-    let parsed: ParsedGift = gift.obj.into_serde().handle_error()?;
-    let body = match &parsed.body {
-        Some(body) => Some(parse_cell_slice(body)?),
-        None => None,
-    };
-    let state_init = match &parsed.state_init {
-        Some(tvc) => Some(ton_block::StateInit::construct_from_base64(tvc).handle_error()?),
-        None => None,
-    };
-
-    Ok(nt::core::ton_wallet::Gift {
-        flags: parsed.flags,
-        bounce: parsed.bounce,
-        destination: parsed.destination,
-        amount: parsed.amount,
-        body,
-        state_init,
-    })
-}
-
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(typescript_type = "TransactionId")]
@@ -867,13 +788,4 @@ extern "C" {
 
     #[wasm_bindgen(typescript_type = "ExtendedSignature")]
     pub type ExtendedSignature;
-
-    #[wasm_bindgen(typescript_type = "WalletContractType")]
-    pub type WalletContractType;
-
-    #[wasm_bindgen(typescript_type = "Gift")]
-    pub type Gift;
-
-    #[wasm_bindgen(typescript_type = "Array<Gift>")]
-    pub type GiftList;
 }

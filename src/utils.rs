@@ -90,6 +90,24 @@ impl ClockWithOffset {
     }
 }
 
+pub fn parse_optional_abi_version(
+    version: Option<String>,
+) -> Result<ton_abi::contract::AbiVersion, JsValue> {
+    match version {
+        Some(version) => parse_abi_version(&version),
+        None => Ok(ton_abi::contract::ABI_VERSION_2_2),
+    }
+}
+
+pub fn parse_abi_version(version: &str) -> Result<ton_abi::contract::AbiVersion, JsValue> {
+    let version = ton_abi::contract::AbiVersion::parse(version).handle_error()?;
+    if version.is_supported() {
+        Ok(version)
+    } else {
+        Err("Unsupported ABI version").handle_error()
+    }
+}
+
 pub fn parse_hash(hash: &str) -> Result<ton_types::UInt256, JsValue> {
     ton_types::UInt256::from_str(hash).handle_error()
 }

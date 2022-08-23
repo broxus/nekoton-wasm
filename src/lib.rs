@@ -100,11 +100,16 @@ pub fn get_boc_hash(boc: &str) -> Result<String, JsValue> {
 }
 
 #[wasm_bindgen(js_name = "packIntoCell")]
-pub fn pack_into_cell(params: ParamsList, tokens: TokensObject) -> Result<String, JsValue> {
+pub fn pack_into_cell(
+    params: ParamsList,
+    tokens: TokensObject,
+    abi_version: Option<String>,
+) -> Result<String, JsValue> {
     let params = parse_params_list(params).handle_error()?;
     let tokens = parse_tokens_object(&params, tokens).handle_error()?;
 
-    let cell = nt::abi::pack_into_cell(&tokens).handle_error()?;
+    let abi_version = parse_optional_abi_version(abi_version)?;
+    let cell = nt::abi::pack_into_cell(&tokens, abi_version).handle_error()?;
     let bytes = ton_types::serialize_toc(&cell).handle_error()?;
     Ok(base64::encode(&bytes))
 }
@@ -114,10 +119,13 @@ pub fn unpack_from_cell(
     params: ParamsList,
     boc: &str,
     allow_partial: bool,
+    abi_version: Option<String>,
 ) -> Result<TokensObject, JsValue> {
     let params = parse_params_list(params).handle_error()?;
     let cell = parse_cell_slice(boc)?;
-    nt::abi::unpack_from_cell(&params, cell, allow_partial)
+    let abi_version = parse_optional_abi_version(abi_version)?;
+
+    nt::abi::unpack_from_cell(&params, cell, allow_partial, abi_version)
         .handle_error()
         .and_then(make_tokens_object)
 }
@@ -507,8 +515,8 @@ pub fn verify_signature(public_key: &str, data: &str, signature: &str) -> Result
     Ok(public_key.verify(&data, &signature).is_ok())
 }
 
-#[wasm_bindgen(js_name = "createRawExternalMessageWithoutSignature")]
-pub fn create_raw_unsigned_message_without_signature(
+#[wasm_bindgen(js_name = "createRawExternalMessage")]
+pub fn create_raw_external_message(
     dst: &str,
     state_init: Option<String>,
     body: Option<String>,
@@ -541,7 +549,7 @@ pub fn create_raw_unsigned_message_without_signature(
 }
 
 #[wasm_bindgen(js_name = "createExternalMessageWithoutSignature")]
-pub fn create_unsigned_message_without_signature(
+pub fn create_external_message_without_signature(
     clock: &ClockWithOffset,
     dst: &str,
     contract_abi: &str,
@@ -640,109 +648,5 @@ pub fn create_external_message(
             input,
         )
         .handle_error()?,
-    })
-}
-
-#[wasm_bindgen(js_name = "computeWalletAddress")]
-pub fn compute_wallet_address(
-    workchain: i8,
-    wallet_type: WalletContractType,
-    public_key: &str,
-) -> Result<String, JsValue> {
-    use nt::core::ton_wallet;
-
-    let contract_type = ton_wallet::WalletType::try_from(wallet_type)?;
-    let public_key = parse_public_key(public_key)?;
-    let address = ton_wallet::compute_address(&public_key, contract_type, workchain).to_string();
-    Ok(address)
-}
-
-#[wasm_bindgen(js_name = "walletPrepareTransfer")]
-pub fn wallet_prepare_transfer(
-    clock: &ClockWithOffset,
-    current_state: &str,
-    wallet_type: WalletContractType,
-    public_key: &str,
-    gifts: GiftList,
-    timeout: u32,
-) -> Result<Option<UnsignedMessage>, JsValue> {
-    use nt::core::ton_wallet;
-
-    let public_key = parse_public_key(public_key)?;
-    let current_state = parse_account_stuff(current_state)?;
-    let gifts = gifts
-        .unchecked_into::<js_sys::Array>()
-        .iter()
-        .map(|gift| parse_gift(gift.unchecked_into()))
-        .collect::<Result<Vec<_>, _>>()?;
-
-    let clock = clock.inner.as_ref();
-    let expiration = nt::core::models::Expiration::Timeout(timeout);
-
-    let contract_type = ton_wallet::WalletType::try_from(wallet_type)?;
-
-    let result = match contract_type {
-        ton_wallet::WalletType::Multisig(_) => {
-            let mut gifts = gifts.into_iter();
-            let gift = match gifts.next() {
-                Some(gift) => {
-                    if gifts.next().is_none() {
-                        gift
-                    } else {
-                        return Err("Multisig doesn't support multiple messages").handle_error();
-                    }
-                }
-                None => return Err("No messages specified").handle_error(),
-            };
-
-            match &current_state.storage.state {
-                ton_block::AccountState::AccountFrozen { .. } => {
-                    return Err("Account is frozen").handle_error()
-                }
-                ton_block::AccountState::AccountUninit => return Ok(None),
-                ton_block::AccountState::AccountActive { .. } => {}
-            };
-
-            let custodians =
-                ton_wallet::multisig::get_custodians(clock, Cow::Borrowed(&current_state))
-                    .handle_error()?;
-            if !custodians
-                .iter()
-                .any(|item| item.as_slice() == public_key.as_bytes())
-            {
-                return Err("Public key is not a custodian").handle_error();
-            }
-
-            ton_wallet::multisig::prepare_transfer(
-                clock,
-                &public_key,
-                custodians.len() > 1,
-                current_state.addr,
-                gift,
-                expiration,
-            )
-        }
-        ton_wallet::WalletType::WalletV3 => ton_wallet::wallet_v3::prepare_transfer(
-            clock,
-            &public_key,
-            &current_state,
-            gifts,
-            expiration,
-        ),
-        ton_wallet::WalletType::HighloadWalletV2 => {
-            ton_wallet::highload_wallet_v2::prepare_transfer(
-                clock,
-                &public_key,
-                &current_state,
-                gifts,
-                expiration,
-            )
-        }
-    }
-    .handle_error()?;
-
-    Ok(match result {
-        ton_wallet::TransferAction::Sign(inner) => Some(UnsignedMessage { inner }),
-        ton_wallet::TransferAction::DeployFirst => None,
     })
 }
