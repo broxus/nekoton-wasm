@@ -131,6 +131,24 @@ pub fn unpack_from_cell(
         .and_then(make_tokens_object)
 }
 
+#[wasm_bindgen(js_name = "extractContractData")]
+pub fn extract_contract_data(boc: &str) -> Result<Option<String>, JsValue> {
+    let account_stuff = parse_account_stuff(boc)?;
+
+    let data = match account_stuff.storage.state {
+        ton_block::AccountState::AccountActive { state_init } => state_init.data,
+        _ => None,
+    };
+
+    match data {
+        Some(data) => {
+            let data = ton_types::serialize_toc(&data).handle_error()?;
+            Ok(Some(base64::encode(data)))
+        }
+        None => Ok(None),
+    }
+}
+
 #[wasm_bindgen(js_name = "extractPublicKey")]
 pub fn extract_public_key(boc: &str) -> Result<String, JsValue> {
     use nt::core::ton_wallet::{highload_wallet_v2, wallet_v3};
