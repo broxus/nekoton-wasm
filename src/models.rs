@@ -416,41 +416,9 @@ type TokensObject = { [K in string]: AbiToken };
 
 #[wasm_bindgen(typescript_custom_section)]
 const PARAM: &str = r#"
-export type AbiParamKindUint = 'uint8' | 'uint16' | 'uint32' | 'uint64' | 'uint128' | 'uint160' | 'uint256';
-export type AbiParamKindInt = 'int8' | 'int16' | 'int32' | 'int64' | 'int128' | 'int160' | 'int256';
-export type AbiParamKindTuple = 'tuple';
-export type AbiParamKindBool = 'bool';
-export type AbiParamKindCell = 'cell';
-export type AbiParamKindAddress = 'address';
-export type AbiParamKindBytes = 'bytes';
-export type AbiParamKindGram = 'gram';
-export type AbiParamKindTime = 'time';
-export type AbiParamKindExpire = 'expire';
-export type AbiParamKindPublicKey = 'pubkey';
-export type AbiParamKindString = 'string';
-export type AbiParamKindArray = `${AbiParamKind}[]`;
-
-export type AbiParamKindMap = `map(${AbiParamKindInt | AbiParamKindUint | AbiParamKindAddress},${AbiParamKind | `${AbiParamKind}[]`})`;
-
-export type AbiParamOptional = `optional(${AbiParamKind})`
-
-export type AbiParamKind =
-  | AbiParamKindUint
-  | AbiParamKindInt
-  | AbiParamKindTuple
-  | AbiParamKindBool
-  | AbiParamKindCell
-  | AbiParamKindAddress
-  | AbiParamKindBytes
-  | AbiParamKindGram
-  | AbiParamKindTime
-  | AbiParamKindExpire
-  | AbiParamKindString
-  | AbiParamKindPublicKey;
-
 export type AbiParam = {
   name: string;
-  type: AbiParamKind | AbiParamKindMap | AbiParamKindArray | AbiParamOptional;
+  type: string;
   components?: AbiParam[];
 };
 "#;
