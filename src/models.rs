@@ -357,6 +357,13 @@ export type DecodedTransactionEvents = Array<DecodedEvent>;
 "#;
 
 #[wasm_bindgen(typescript_custom_section)]
+const TRANSACTION_EXECUTOR_OUTPUT: &str = r#"
+export type TransactionExecutorOutput =
+    | { exitCode: number }
+    | { account: string, transaction: Transaction }
+"#;
+
+#[wasm_bindgen(typescript_custom_section)]
 const EXECUTION_OUTPUT: &str = r#"
 export type ExecutionOutput = {
     output?: TokensObject,
@@ -730,6 +737,9 @@ extern "C" {
     #[wasm_bindgen(typescript_type = "DecodedTransactionEvents")]
     pub type DecodedTransactionEvents;
 
+    #[wasm_bindgen(typescript_type = "TransactionExecutorOutput")]
+    pub type TransactionExecutorOutput;
+
     #[wasm_bindgen(typescript_type = "ExecutionOutput")]
     pub type ExecutionOutput;
 
@@ -747,6 +757,9 @@ extern "C" {
 
     #[wasm_bindgen(typescript_type = "SignedMessage")]
     pub type SignedMessage;
+
+    #[wasm_bindgen(typescript_type = "FullContractState | undefined")]
+    pub type OptionFullContractState;
 
     #[wasm_bindgen(typescript_type = "Promise<FullContractState | undefined>")]
     pub type PromiseOptionFullContractState;

@@ -3,11 +3,14 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::str::FromStr;
+use std::sync::atomic::AtomicU64;
+use std::sync::Arc;
 
 use ed25519_dalek::{Signer, Verifier};
 use nt::abi::FunctionExt;
 use nt::utils::Clock;
-use ton_block::{Deserializable, Serializable};
+use ton_block::{Deserializable, GetRepresentationHash, Serializable};
+use ton_executor::TransactionExecutor;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::{JsCast, JsValue};
 use zeroize::Zeroize;
@@ -60,6 +63,98 @@ pub fn run_local(
     };
 
     make_execution_output(output)
+}
+
+#[wasm_bindgen(js_name = "makeFullAccountBoc")]
+pub fn make_full_account_boc(account_stuff_boc: &str) -> Result<String, JsValue> {
+    let account_stuff = parse_account_stuff(account_stuff_boc)?;
+    ton_block::Account::Account(account_stuff)
+        .serialize()
+        .and_then(|cell| ton_types::serialize_toc(&cell))
+        .map(base64::encode)
+        .handle_error()
+}
+
+#[wasm_bindgen(js_name = "parseFullAccountBoc")]
+pub fn parse_full_account_boc(account: &str) -> Result<OptionFullContractState, JsValue> {
+    let account = parse_cell(account)?;
+    let account = if nt::utils::is_empty_cell(&account.repr_hash()) {
+        nt::transport::models::RawContractState::NotExists
+    } else {
+        match ton_block::Account::construct_from_cell(account).handle_error()? {
+            ton_block::Account::Account(account) => {
+                let last_transaction_id = nt::abi::LastTransactionId::Inexact {
+                    latest_lt: account.storage.last_trans_lt,
+                };
+                nt::transport::models::RawContractState::Exists(
+                    nt::transport::models::ExistingContract {
+                        account,
+                        timings: nt::abi::GenTimings::Unknown,
+                        last_transaction_id,
+                    },
+                )
+            }
+            ton_block::Account::AccountNone => nt::transport::models::RawContractState::NotExists,
+        }
+    };
+    make_full_contract_state(account).map(JsValue::unchecked_into)
+}
+
+#[wasm_bindgen(js_name = "executeLocal")]
+pub fn execute_local(
+    config: &str,
+    account: &str,
+    message: &str,
+    utime: u32,
+    disable_signature_check: bool,
+) -> Result<TransactionExecutorOutput, JsValue> {
+    let mut account = parse_cell(account)?;
+    let last_trans_lt = ton_block::Account::construct_from_cell(account.clone())
+        .handle_error()?
+        .last_tr_time()
+        .unwrap_or_default();
+    let message = ton_block::Message::construct_from_base64(message).handle_error()?;
+    let config = ton_block::ConfigParams::construct_from_base64(config).handle_error()?;
+    let config = ton_executor::BlockchainConfig::with_config(config).handle_error()?;
+
+    let mut executor = ton_executor::OrdinaryTransactionExecutor::new(config);
+    executor.set_signature_check_disabled(disable_signature_check);
+
+    let params = ton_executor::ExecuteParams {
+        block_unixtime: utime,
+        block_lt: last_trans_lt + 10,
+        last_tr_lt: Arc::new(AtomicU64::new(last_trans_lt)),
+        ..Default::default()
+    };
+
+    let tx = match executor.execute_with_libs_and_params(Some(&message), &mut account, params) {
+        Ok(tx) => {
+            let hash = tx.hash().handle_error()?;
+            nt::core::models::Transaction::try_from((hash, tx)).handle_error()?
+        }
+        Err(e) => {
+            return match e.downcast_ref::<ton_executor::ExecutorError>() {
+                Some(ton_executor::ExecutorError::NoAcceptError(code, _)) => {
+                    Ok(ObjectBuilder::new()
+                        .set("exitCode", *code)
+                        .build()
+                        .unchecked_into())
+                }
+                _ => Err(e).handle_error(),
+            }
+        }
+    };
+
+    Ok(ObjectBuilder::new()
+        .set(
+            "account",
+            ton_types::serialize_toc(&account)
+                .map(base64::encode)
+                .handle_error()?,
+        )
+        .set("transaction", make_transaction(tx))
+        .build()
+        .unchecked_into())
 }
 
 #[wasm_bindgen(js_name = "getExpectedAddress")]
