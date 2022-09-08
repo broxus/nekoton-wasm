@@ -22,10 +22,11 @@ impl nt::external::GqlConnection for GqlConnectionImpl {
         self.sender.is_local()
     }
 
-    async fn post(&self, data: &str) -> Result<String> {
+    async fn post(&self, req: nt::external::GqlRequest) -> Result<String> {
         let (tx, rx) = oneshot::channel();
 
-        self.sender.send(data, GqlQuery { tx });
+        self.sender.send(&req.data, GqlQuery { tx }, req.long_query);
+        drop(req);
 
         let response = rx.await.unwrap_or(Err(GqlQueryError::RequestDropped))?;
         Ok(response)
@@ -36,7 +37,7 @@ impl nt::external::GqlConnection for GqlConnectionImpl {
 const GQL_SENDER: &str = r#"
 export interface IGqlSender {
   isLocal(): boolean;
-  send(data: string, handler: GqlQuery): void;
+  send(data: string, handler: GqlQuery, long_query: boolean): void;
 }
 "#;
 
@@ -49,7 +50,7 @@ extern "C" {
     pub fn is_local(this: &IGqlSender) -> bool;
 
     #[wasm_bindgen(method)]
-    pub fn send(this: &IGqlSender, data: &str, handler: GqlQuery);
+    pub fn send(this: &IGqlSender, data: &str, handler: GqlQuery, long_query: bool);
 }
 
 unsafe impl Send for IGqlSender {}
