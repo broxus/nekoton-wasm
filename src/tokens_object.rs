@@ -531,11 +531,11 @@ pub fn parse_param_type(kind: &str) -> Result<ton_abi::ParamType, TokensJsonErro
         }
         s if s.starts_with("varint") => {
             let len = usize::from_str(&s[6..]).map_err(|_| TokensJsonError::ParamTypeExpected)?;
-            ton_abi::ParamType::Int(len)
+            ton_abi::ParamType::VarInt(len)
         }
         s if s.starts_with("varuint") => {
             let len = usize::from_str(&s[7..]).map_err(|_| TokensJsonError::ParamTypeExpected)?;
-            ton_abi::ParamType::Uint(len)
+            ton_abi::ParamType::VarUint(len)
         }
         s if s.starts_with("map(") && s.ends_with(')') => {
             let types: Vec<&str> = kind[4..kind.len() - 1].splitn(2, ',').collect();
@@ -547,8 +547,11 @@ pub fn parse_param_type(kind: &str) -> Result<ton_abi::ParamType, TokensJsonErro
             let value_type = parse_param_type(types[1])?;
 
             match key_type {
-                ton_abi::ParamType::Int(_)
+                ton_abi::ParamType::Bool
+                | ton_abi::ParamType::Int(_)
                 | ton_abi::ParamType::Uint(_)
+                | ton_abi::ParamType::VarUint(_)
+                | ton_abi::ParamType::VarInt(_)
                 | ton_abi::ParamType::Address => {
                     ton_abi::ParamType::Map(Box::new(key_type), Box::new(value_type))
                 }
