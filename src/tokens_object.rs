@@ -90,7 +90,7 @@ pub fn make_token_value(value: ton_abi::TokenValue) -> Result<JsValue, JsValue> 
             .into_iter()
             .map(|(key, value)| {
                 Result::<JsValue, JsValue>::Ok(
-                    [JsValue::from(key), make_token_value(value)?]
+                    [JsValue::from(key.to_string()), make_token_value(value)?]
                         .iter()
                         .collect::<js_sys::Array>()
                         .unchecked_into(),
@@ -293,10 +293,12 @@ pub fn parse_token_value(
                     return Err(TokensJsonError::MapItemExpected);
                 }
 
-                let key = parse_token_value(param_key.as_ref(), value.get(0))?;
+                let key = parse_token_value(param_key.as_ref(), value.get(0))?
+                    .try_into()
+                    .map_err(|_| TokensJsonError::InvalidMappingKey)?;
                 let value = parse_token_value(param_value.as_ref(), value.get(1))?;
 
-                result.insert(key.to_string(), value);
+                result.insert(key, value);
             }
 
             ton_abi::TokenValue::Map(*param_key.clone(), *param_value.clone(), result)

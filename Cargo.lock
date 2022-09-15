@@ -510,7 +510,7 @@ checksum = "93c0d11ac30a033511ae414355d80f70d9f29a44a49140face477117a1ee90db"
 [[package]]
 name = "nekoton"
 version = "0.11.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=master#e304590fc3e306bc6db22293114854595768d618"
+source = "git+https://github.com/broxus/nekoton.git?branch=master#ccf843d229484d6350e4d18f770e8a7271a5839b"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -554,7 +554,7 @@ dependencies = [
 [[package]]
 name = "nekoton-abi"
 version = "0.11.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=master#e304590fc3e306bc6db22293114854595768d618"
+source = "git+https://github.com/broxus/nekoton.git?branch=master#ccf843d229484d6350e4d18f770e8a7271a5839b"
 dependencies = [
  "anyhow",
  "base64",
@@ -580,7 +580,7 @@ dependencies = [
 [[package]]
 name = "nekoton-contracts"
 version = "0.11.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=master#e304590fc3e306bc6db22293114854595768d618"
+source = "git+https://github.com/broxus/nekoton.git?branch=master#ccf843d229484d6350e4d18f770e8a7271a5839b"
 dependencies = [
  "anyhow",
  "nekoton-abi",
@@ -594,7 +594,7 @@ dependencies = [
 [[package]]
 name = "nekoton-derive"
 version = "0.11.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=master#e304590fc3e306bc6db22293114854595768d618"
+source = "git+https://github.com/broxus/nekoton.git?branch=master#ccf843d229484d6350e4d18f770e8a7271a5839b"
 dependencies = [
  "either",
  "proc-macro2",
@@ -605,7 +605,7 @@ dependencies = [
 [[package]]
 name = "nekoton-utils"
 version = "0.11.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=master#e304590fc3e306bc6db22293114854595768d618"
+source = "git+https://github.com/broxus/nekoton.git?branch=master#ccf843d229484d6350e4d18f770e8a7271a5839b"
 dependencies = [
  "anyhow",
  "base64",
@@ -626,7 +626,7 @@ dependencies = [
 
 [[package]]
 name = "nekoton-wasm"
-version = "1.0.6"
+version = "1.0.7"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -926,9 +926,9 @@ dependencies = [
 
 [[package]]
 name = "semver"
-version = "1.0.13"
+version = "1.0.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93f6841e709003d68bb2deee8c343572bf446003ec20a583e76f7b15cebf3711"
+checksum = "e25dfac463d778e353db5be2449d1cce89bd6fd23c9f1ea21310ce6e5a1b29c4"
 
 [[package]]
 name = "serde"
@@ -1120,7 +1120,7 @@ dependencies = [
 [[package]]
 name = "ton_abi"
 version = "2.1.0"
-source = "git+https://github.com/broxus/ton-labs-abi.git#264a53235986fbe6ab1a61416f96daff1f975b19"
+source = "git+https://github.com/broxus/ton-labs-abi.git#f76338d992d492646d0a2093bc35eb2038de9790"
 dependencies = [
  "anyhow",
  "base64",
@@ -1143,7 +1143,7 @@ dependencies = [
 [[package]]
 name = "ton_block"
 version = "1.7.14"
-source = "git+https://github.com/broxus/ton-labs-block.git#cc37d7c1f8578225a6fb41866ff7c3cc55b845fd"
+source = "git+https://github.com/broxus/ton-labs-block.git#2bcafe861f0d2a38c5f92bc1f9197ac7ccc6ba6f"
 dependencies = [
  "anyhow",
  "base64",

@@ -272,6 +272,8 @@ pub enum TokensJsonError {
     StringExpected,
     #[error("Expected map item as array of key and value")]
     MapItemExpected,
+    #[error("Invalid mapping key")]
+    InvalidMappingKey,
     #[error("Invalid address")]
     InvalidAddress,
     #[error("Invalid bytes")]
