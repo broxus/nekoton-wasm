@@ -174,9 +174,18 @@ export type AccountsList = {
 }
 "#;
 
-pub fn make_accounts_list(accounts: Vec<ton_block::MsgAddressInt>) -> AccountsList {
+pub fn make_accounts_list(
+    accounts: Vec<ton_block::MsgAddressInt>,
+    without_continuation: bool,
+) -> AccountsList {
+    let continuation = if without_continuation {
+        None
+    } else {
+        accounts.last().map(ToString::to_string)
+    };
+
     ObjectBuilder::new()
-        .set("continuation", accounts.last().map(ToString::to_string))
+        .set("continuation", continuation)
         .set(
             "accounts",
             accounts
@@ -209,7 +218,7 @@ pub fn make_transactions_list(
     };
 
     let continuation = raw_transactions.last().and_then(|transaction| {
-        (transaction.data.prev_trans_lt != 0).then(|| nt::abi::TransactionId {
+        (transaction.data.prev_trans_lt != 0).then_some(nt::abi::TransactionId {
             lt: transaction.data.prev_trans_lt,
             hash: transaction.data.prev_trans_hash,
         })

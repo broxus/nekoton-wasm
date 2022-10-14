@@ -131,14 +131,14 @@ impl Transport {
         let handle = self.handle.clone();
 
         Ok(JsCast::unchecked_into(future_to_promise(async move {
-            Ok(make_accounts_list(
-                handle
-                    .as_ref()
-                    .get_accounts_by_code_hash(&code_hash, limit, &continuation)
-                    .await
-                    .handle_error()?,
-            )
-            .unchecked_into())
+            let accounts = handle
+                .as_ref()
+                .get_accounts_by_code_hash(&code_hash, limit, &continuation)
+                .await
+                .handle_error()?;
+
+            let without_continuation = accounts.len() < limit as usize;
+            Ok(make_accounts_list(accounts, without_continuation).unchecked_into())
         })))
     }
 
