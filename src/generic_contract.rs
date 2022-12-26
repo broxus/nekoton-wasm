@@ -1,6 +1,7 @@
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
+use gloo_utils::format::JsValueSerdeExt;
 use nt::utils::TrustMe;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -44,9 +45,11 @@ impl GenericContract {
     pub fn send_message_locally(
         &self,
         message: SignedMessage,
+        params: OptionalExecutorParams,
     ) -> Result<PromiseTransaction, JsValue> {
         let inner = self.inner.clone();
         let message = parse_signed_message(message)?;
+        let params = parse_executor_params(params)?;
 
         // NOTE: method must be called through the external mutex
         #[allow(clippy::await_holding_lock)]
@@ -54,7 +57,7 @@ impl GenericContract {
             let mut contract = inner.contract.lock().trust_me();
 
             let transaction = contract
-                .execute_transaction_locally(&message.message, Default::default())
+                .execute_transaction_locally(&message.message, params)
                 .await
                 .handle_error()?;
             Ok(make_transaction(transaction).unchecked_into())
@@ -224,5 +227,30 @@ impl nt::core::generic_contract::GenericContractSubscriptionHandler
                 .unchecked_into(),
             make_transactions_batch_info(batch_info),
         );
+    }
+}
+
+#[wasm_bindgen(typescript_custom_section)]
+const TRANSACTION_EXECUTION_OPTIONS: &str = r#"
+export type ExecutorParams = {
+    disableSignatureCheck?: bool,
+    overrideBalance?: string | number,
+};
+"#;
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(typescript_type = "ExecutorParams | undefined")]
+    pub type OptionalExecutorParams;
+}
+
+fn parse_executor_params(
+    params: OptionalExecutorParams,
+) -> Result<nt::core::TransactionExecutionOptions, JsValue> {
+    if params.is_null() || params.is_undefined() {
+        Ok(Default::default())
+    } else {
+        <JsValue as JsValueSerdeExt>::into_serde::<nt::core::TransactionExecutionOptions>(&params)
+            .handle_error()
     }
 }

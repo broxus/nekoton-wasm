@@ -207,7 +207,7 @@ pub fn pack_into_cell(
     let abi_version = parse_optional_abi_version(abi_version)?;
     let cell = nt::abi::pack_into_cell(&tokens, abi_version).handle_error()?;
     let bytes = ton_types::serialize_toc(&cell).handle_error()?;
-    Ok(base64::encode(&bytes))
+    Ok(base64::encode(bytes))
 }
 
 #[wasm_bindgen(js_name = "unpackFromCell")]
@@ -311,7 +311,7 @@ pub fn merge_tvc(code: &str, data: &str) -> Result<String, JsValue> {
 
     let cell = state_init.serialize().handle_error()?;
     let bytes = ton_types::serialize_toc(&cell).handle_error()?;
-    Ok(base64::encode(&bytes))
+    Ok(base64::encode(bytes))
 }
 
 #[wasm_bindgen(js_name = "splitTvc")]
@@ -374,7 +374,7 @@ pub fn encode_internal_input(
         .and_then(|value| value.into_cell())
         .handle_error()?;
     let body = ton_types::serialize_toc(&body).handle_error()?;
-    Ok(base64::encode(&body))
+    Ok(base64::encode(body))
 }
 
 #[wasm_bindgen(js_name = "encodeInternalMessage")]

@@ -84,7 +84,7 @@ pub fn make_token_value(value: ton_abi::TokenValue) -> Result<JsValue, JsValue> 
         }
         ton_abi::TokenValue::Cell(value) => {
             let data = ton_types::serialize_toc(&value).handle_error()?;
-            JsValue::from(base64::encode(&data))
+            JsValue::from(base64::encode(data))
         }
         ton_abi::TokenValue::Map(_, _, values) => values
             .into_iter()
@@ -261,7 +261,7 @@ pub fn parse_token_value(
                 if value.is_empty() {
                     Ok(ton_types::Cell::default())
                 } else {
-                    base64::decode(&value)
+                    base64::decode(value)
                         .map_err(|_| TokensJsonError::InvalidCell)
                         .and_then(|value| {
                             ton_types::deserialize_tree_of_cells(&mut value.as_slice())
