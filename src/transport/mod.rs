@@ -73,6 +73,21 @@ impl Transport {
         }
     }
 
+    #[wasm_bindgen(js_name = "getSignatureId")]
+    pub fn get_signature_id(&self) -> PromiseOptionSignatureId {
+        let clock = self.clock.clone();
+        let handle = self.handle.clone();
+
+        JsCast::unchecked_into(future_to_promise(async move {
+            let network_id = handle
+                .as_ref()
+                .get_capabilities(clock.as_ref())
+                .await
+                .handle_error()?;
+            Ok(JsValue::from(network_id.signature_id()))
+        }))
+    }
+
     #[wasm_bindgen(js_name = "subscribeToGenericContract")]
     pub fn subscribe_to_generic_contract_wallet(
         &self,
