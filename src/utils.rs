@@ -217,6 +217,19 @@ pub fn parse_contract_abi(contract_abi: &str) -> Result<ton_abi::Contract, JsVal
     ton_abi::Contract::load(contract_abi).handle_error()
 }
 
+pub fn encode_to_base64_boc(data: &dyn ton_block::Serializable) -> Result<String, JsValue> {
+    let cell = data.serialize().handle_error()?;
+    ton_types::serialize_toc(&cell)
+        .handle_error()
+        .map(base64::encode)
+}
+
+pub fn encode_cell_to_base64_boc(data: &ton_types::Cell) -> Result<String, JsValue> {
+    ton_types::serialize_toc(data)
+        .handle_error()
+        .map(base64::encode)
+}
+
 #[wasm_bindgen(typescript_custom_section)]
 const GENERAL_STUFF: &str = r#"
 export type EnumItem<T extends string, D> = { type: T, data: D };

@@ -129,8 +129,10 @@ export type Message = {
 
 pub fn make_message(data: models::Message) -> Message {
     let (body, body_hash) = if let Some(body) = data.body {
-        let data = ton_types::serialize_toc(&body.data).expect("Shouldn't fail");
-        (Some(base64::encode(data)), Some(body.hash.to_hex_string()))
+        (
+            Some(encode_cell_to_base64_boc(&body.data).expect("Shouldn't fail")),
+            Some(body.hash.to_hex_string()),
+        )
     } else {
         (None, None)
     };
@@ -515,10 +517,7 @@ export type SignedMessage = {
 pub fn make_signed_message(data: nt::crypto::SignedMessage) -> Result<SignedMessage, JsValue> {
     let (boc, hash) = {
         let cell = data.message.write_to_new_cell().handle_error()?.into();
-        (
-            base64::encode(ton_types::serialize_toc(&cell).handle_error()?),
-            cell.repr_hash(),
-        )
+        (encode_cell_to_base64_boc(&cell)?, cell.repr_hash())
     };
 
     Ok(ObjectBuilder::new()
@@ -538,11 +537,7 @@ pub fn parse_signed_message(data: SignedMessage) -> Result<nt::crypto::SignedMes
         .handle_error()?
         .as_string()
     {
-        Some(boc) => {
-            let body = base64::decode(boc.trim()).handle_error()?;
-            let cell = ton_types::deserialize_tree_of_cells(&mut body.as_slice()).handle_error()?;
-            ton_block::Message::construct_from_cell(cell).handle_error()?
-        }
+        Some(boc) => ton_block::Message::construct_from_cell(parse_cell(&boc)?).handle_error()?,
         None => return Err(TokensJsonError::StringExpected).handle_error(),
     };
 
@@ -641,11 +636,6 @@ pub fn make_full_contract_state(
                 _ => None,
             };
 
-            let account_cell = state.account.serialize().handle_error()?;
-            let boc = ton_types::serialize_toc(&account_cell)
-                .map(base64::encode)
-                .handle_error()?;
-
             Ok(ObjectBuilder::new()
                 .set("balance", state.account.storage.balance.grams.0.to_string())
                 .set("genTimings", make_gen_timings(state.timings))
@@ -661,7 +651,7 @@ pub fn make_full_contract_state(
                     ),
                 )
                 .set("codeHash", code_hash)
-                .set("boc", boc)
+                .set("boc", encode_to_base64_boc(&state.account)?)
                 .build()
                 .unchecked_into())
         }
@@ -724,6 +714,9 @@ extern "C" {
 
     #[wasm_bindgen(typescript_type = "PollingMethod")]
     pub type PollingMethod;
+
+    #[wasm_bindgen(typescript_type = "Promise<PollingMethod>")]
+    pub type PromisePollingMethod;
 
     #[wasm_bindgen(typescript_type = "StateInit")]
     pub type StateInit;

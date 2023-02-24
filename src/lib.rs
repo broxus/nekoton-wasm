@@ -68,11 +68,7 @@ pub fn run_local(
 #[wasm_bindgen(js_name = "makeFullAccountBoc")]
 pub fn make_full_account_boc(account_stuff_boc: &str) -> Result<String, JsValue> {
     let account_stuff = parse_account_stuff(account_stuff_boc)?;
-    ton_block::Account::Account(account_stuff)
-        .serialize()
-        .and_then(|cell| ton_types::serialize_toc(&cell))
-        .map(base64::encode)
-        .handle_error()
+    encode_to_base64_boc(&ton_block::Account::Account(account_stuff))
 }
 
 #[wasm_bindgen(js_name = "parseFullAccountBoc")]
@@ -146,12 +142,7 @@ pub fn execute_local(
     };
 
     Ok(ObjectBuilder::new()
-        .set(
-            "account",
-            ton_types::serialize_toc(&account)
-                .map(base64::encode)
-                .handle_error()?,
-        )
+        .set("account", encode_cell_to_base64_boc(&account)?)
         .set("transaction", make_transaction(tx))
         .build()
         .unchecked_into())
@@ -179,12 +170,7 @@ pub fn get_expected_address(
     let repr_hash = cell.repr_hash().to_hex_string();
 
     Ok(ObjectBuilder::new()
-        .set(
-            "stateInit",
-            ton_types::serialize_toc(&cell)
-                .map(base64::encode)
-                .handle_error()?,
-        )
+        .set("stateInit", encode_cell_to_base64_boc(&cell)?)
         .set("address", format!("{workchain_id}:{repr_hash}"))
         .build()
         .unchecked_into())
@@ -206,8 +192,7 @@ pub fn pack_into_cell(
 
     let abi_version = parse_optional_abi_version(abi_version)?;
     let cell = nt::abi::pack_into_cell(&tokens, abi_version).handle_error()?;
-    let bytes = ton_types::serialize_toc(&cell).handle_error()?;
-    Ok(base64::encode(bytes))
+    encode_cell_to_base64_boc(&cell)
 }
 
 #[wasm_bindgen(js_name = "unpackFromCell")]
@@ -236,10 +221,7 @@ pub fn extract_contract_data(boc: &str) -> Result<Option<String>, JsValue> {
     };
 
     match data {
-        Some(data) => {
-            let data = ton_types::serialize_toc(&data).handle_error()?;
-            Ok(Some(base64::encode(data)))
-        }
+        Some(data) => encode_cell_to_base64_boc(&data).map(Some),
         None => Ok(None),
     }
 }
@@ -294,11 +276,8 @@ pub fn extract_public_key(boc: &str) -> Result<String, JsValue> {
 #[wasm_bindgen(js_name = "codeToTvc")]
 pub fn code_to_tvc(code: &str) -> Result<String, JsValue> {
     let cell = parse_cell(code)?;
-    nt::abi::code_to_tvc(cell)
-        .and_then(|x| x.serialize())
-        .and_then(|x| ton_types::serialize_toc(&x))
-        .map(base64::encode)
-        .handle_error()
+    let state_init = nt::abi::code_to_tvc(cell).handle_error()?;
+    encode_to_base64_boc(&state_init)
 }
 
 #[wasm_bindgen(js_name = "mergeTvc")]
@@ -308,10 +287,7 @@ pub fn merge_tvc(code: &str, data: &str) -> Result<String, JsValue> {
         data: Some(parse_cell(data)?),
         ..Default::default()
     };
-
-    let cell = state_init.serialize().handle_error()?;
-    let bytes = ton_types::serialize_toc(&cell).handle_error()?;
-    Ok(base64::encode(bytes))
+    encode_to_base64_boc(&state_init)
 }
 
 #[wasm_bindgen(js_name = "splitTvc")]
@@ -319,18 +295,12 @@ pub fn split_tvc(tvc: &str) -> Result<StateInit, JsValue> {
     let state_init = ton_block::StateInit::construct_from_base64(tvc).handle_error()?;
 
     let data = match state_init.data {
-        Some(data) => {
-            let data = ton_types::serialize_toc(&data).handle_error()?;
-            Some(base64::encode(data))
-        }
+        Some(data) => Some(encode_cell_to_base64_boc(&data)?),
         None => None,
     };
 
     let code = match state_init.code {
-        Some(code) => {
-            let code = ton_types::serialize_toc(&code).handle_error()?;
-            Some(base64::encode(code))
-        }
+        Some(code) => Some(encode_cell_to_base64_boc(&code)?),
         None => None,
     };
 
@@ -343,18 +313,14 @@ pub fn split_tvc(tvc: &str) -> Result<StateInit, JsValue> {
 
 #[wasm_bindgen(js_name = "setCodeSalt")]
 pub fn set_code_salt(code: &str, salt: &str) -> Result<String, JsValue> {
-    nt::abi::set_code_salt(parse_cell(code)?, parse_cell(salt)?)
-        .and_then(|cell| ton_types::serialize_toc(&cell))
-        .map(base64::encode)
-        .handle_error()
+    let cell = nt::abi::set_code_salt(parse_cell(code)?, parse_cell(salt)?).handle_error()?;
+    encode_cell_to_base64_boc(&cell)
 }
 
 #[wasm_bindgen(js_name = "getCodeSalt")]
 pub fn get_code_salt(code: &str) -> Result<Option<String>, JsValue> {
     match nt::abi::get_code_salt(parse_cell(code)?).handle_error()? {
-        Some(salt) => Ok(Some(base64::encode(
-            ton_types::serialize_toc(&salt).handle_error()?,
-        ))),
+        Some(salt) => encode_cell_to_base64_boc(&salt).map(Some),
         None => Ok(None),
     }
 }
@@ -373,8 +339,7 @@ pub fn encode_internal_input(
         .encode_internal_input(&input)
         .and_then(|value| value.into_cell())
         .handle_error()?;
-    let body = ton_types::serialize_toc(&body).handle_error()?;
-    Ok(base64::encode(body))
+    encode_cell_to_base64_boc(&body)
 }
 
 #[wasm_bindgen(js_name = "encodeInternalMessage")]
@@ -385,6 +350,7 @@ pub fn encode_internal_message(
     state_init: Option<String>,
     body: Option<String>,
     amount: &str,
+    bounced: Option<bool>,
 ) -> Result<String, JsValue> {
     let src = match src {
         Some(src) => ton_block::MsgAddressIntOrNone::Some(parse_address(&src)?),
@@ -403,6 +369,7 @@ pub fn encode_internal_message(
         src,
         dst,
         value: amount.into(),
+        bounced: bounced.unwrap_or_default(),
         ..Default::default()
     });
 
@@ -413,11 +380,7 @@ pub fn encode_internal_message(
         message.set_body(parse_cell_slice(&body)?);
     }
 
-    message
-        .serialize()
-        .and_then(|cell| ton_types::serialize_toc(&cell))
-        .map(base64::encode)
-        .handle_error()
+    encode_to_base64_boc(&message)
 }
 
 #[wasm_bindgen(js_name = "decodeInput")]

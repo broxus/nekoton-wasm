@@ -86,7 +86,7 @@ impl GenericContract {
     }
 
     #[wasm_bindgen(js_name = "refresh")]
-    pub fn refresh(&mut self) -> PromiseVoid {
+    pub fn refresh(&mut self) -> PromisePollingMethod {
         let inner = self.inner.clone();
 
         // NOTE: method must be called through the external mutex
@@ -95,12 +95,12 @@ impl GenericContract {
             let mut contract = inner.contract.lock().trust_me();
 
             contract.refresh().await.handle_error()?;
-            Ok(JsValue::undefined())
+            Ok(make_polling_method(contract.polling_method()).unchecked_into())
         }))
     }
 
     #[wasm_bindgen(js_name = "handleBlock")]
-    pub fn handle_block(&mut self, block_id: String) -> PromiseVoid {
+    pub fn handle_block(&mut self, block_id: String) -> PromisePollingMethod {
         let inner = self.inner.clone();
 
         // NOTE: method must be called through the external mutex
@@ -111,7 +111,7 @@ impl GenericContract {
             let mut contract = inner.contract.lock().trust_me();
             contract.handle_block(&block).await.handle_error()?;
 
-            Ok(JsValue::undefined())
+            Ok(make_polling_method(contract.polling_method()).unchecked_into())
         }))
     }
 

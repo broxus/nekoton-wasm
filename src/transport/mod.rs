@@ -88,6 +88,23 @@ impl Transport {
         }))
     }
 
+    #[wasm_bindgen(js_name = "getBlockchainConfig")]
+    pub fn get_blockchain_config(&self, force: Option<bool>) -> PromiseString {
+        let clock = self.clock.clone();
+        let handle = self.handle.clone();
+
+        JsCast::unchecked_into(future_to_promise(async move {
+            let config = handle
+                .as_ref()
+                .get_blockchain_config(clock.as_ref(), force.unwrap_or_default())
+                .await
+                .handle_error()?;
+
+            let config = encode_to_base64_boc(config.raw_config())?;
+            Ok(JsValue::from(config))
+        }))
+    }
+
     #[wasm_bindgen(js_name = "subscribeToGenericContract")]
     pub fn subscribe_to_generic_contract_wallet(
         &self,
