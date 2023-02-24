@@ -233,7 +233,7 @@ impl nt::core::generic_contract::GenericContractSubscriptionHandler
 #[wasm_bindgen(typescript_custom_section)]
 const TRANSACTION_EXECUTION_OPTIONS: &str = r#"
 export type ExecutorParams = {
-    disableSignatureCheck?: bool,
+    disableSignatureCheck?: boolean,
     overrideBalance?: string | number,
 };
 "#;

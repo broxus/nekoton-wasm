@@ -639,7 +639,7 @@ dependencies = [
 
 [[package]]
 name = "nekoton-wasm"
-version = "1.0.14"
+version = "1.0.16"
 dependencies = [
  "anyhow",
  "async-trait",

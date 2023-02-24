@@ -66,9 +66,12 @@ pub fn run_local(
 }
 
 #[wasm_bindgen(js_name = "makeFullAccountBoc")]
-pub fn make_full_account_boc(account_stuff_boc: &str) -> Result<String, JsValue> {
-    let account_stuff = parse_account_stuff(account_stuff_boc)?;
-    encode_to_base64_boc(&ton_block::Account::Account(account_stuff))
+pub fn make_full_account_boc(account_stuff_boc: Option<String>) -> Result<String, JsValue> {
+    let account = match account_stuff_boc {
+        Some(stuff) => ton_block::Account::Account(parse_account_stuff(&stuff)?),
+        None => ton_block::Account::AccountNone,
+    };
+    encode_to_base64_boc(&account)
 }
 
 #[wasm_bindgen(js_name = "parseFullAccountBoc")]
@@ -103,6 +106,7 @@ pub fn execute_local(
     message: &str,
     utime: u32,
     disable_signature_check: bool,
+    overwrite_balance: Option<String>,
 ) -> Result<TransactionExecutorOutput, JsValue> {
     let mut account = parse_cell(account)?;
     let last_trans_lt = ton_block::Account::construct_from_cell(account.clone())
@@ -110,6 +114,30 @@ pub fn execute_local(
         .last_tr_time()
         .unwrap_or_default();
     let message = ton_block::Message::construct_from_base64(message).handle_error()?;
+
+    if let Some(amount) = overwrite_balance {
+        let amount = u64::from_str(amount.trim())
+            .map_err(|_| "Invalid amount")
+            .handle_error()?;
+        let balance = ton_block::CurrencyCollection::with_grams(amount);
+
+        let mut new_account = ton_block::Account::construct_from_cell(account).handle_error()?;
+        match &mut new_account {
+            new_account @ ton_block::Account::AccountNone => {
+                let address = message
+                    .dst()
+                    .ok_or("Message without destination address")
+                    .handle_error()?;
+                *new_account = ton_block::Account::with_address_and_ballance(&address, &balance);
+            }
+            ton_block::Account::Account(stuff) => {
+                stuff.storage.balance = balance;
+            }
+        };
+
+        account = new_account.serialize().handle_error()?;
+    };
+
     let config = ton_block::ConfigParams::construct_from_base64(config).handle_error()?;
     let config = ton_executor::BlockchainConfig::with_config(config).handle_error()?;
 
