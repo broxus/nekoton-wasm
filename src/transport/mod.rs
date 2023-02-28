@@ -73,6 +73,21 @@ impl Transport {
         }
     }
 
+    #[wasm_bindgen(js_name = "getNetworkDescription")]
+    pub fn get_network_description(&self) -> PromiseNetworkDescription {
+        let clock = self.clock.clone();
+        let handle = self.handle.clone();
+
+        JsCast::unchecked_into(future_to_promise(async move {
+            let capabilities = handle
+                .as_ref()
+                .get_capabilities(clock.as_ref())
+                .await
+                .handle_error()?;
+            Ok(make_network_description(capabilities))
+        }))
+    }
+
     #[wasm_bindgen(js_name = "getSignatureId")]
     pub fn get_signature_id(&self) -> PromiseOptionSignatureId {
         let clock = self.clock.clone();

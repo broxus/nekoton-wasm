@@ -9,6 +9,24 @@ use crate::tokens_object::*;
 use crate::utils::*;
 
 #[wasm_bindgen(typescript_custom_section)]
+const NETWORK_DESCRIPTION: &str = r#"
+export type NetworkDescription = {
+    globalId: number,
+    capabilities: string,
+    signatureId: number | undefined,
+};
+"#;
+
+// TODO: add zerostate hash
+pub fn make_network_description(capabilities: models::NetworkCapabilities) -> JsValue {
+    ObjectBuilder::new()
+        .set("globalId", capabilities.global_id)
+        .set("capabilities", format!("0x{:x}", capabilities.raw))
+        .set("signatureId", capabilities.signature_id())
+        .build()
+}
+
+#[wasm_bindgen(typescript_custom_section)]
 const TRANSACTION_ID: &str = r#"
 export type TransactionId = {
     lt: string,
@@ -765,6 +783,9 @@ extern "C" {
 
     #[wasm_bindgen(typescript_type = "Promise<FullContractState | undefined>")]
     pub type PromiseOptionFullContractState;
+
+    #[wasm_bindgen(typescript_type = "Promise<NetworkDescription>")]
+    pub type PromiseNetworkDescription;
 
     #[wasm_bindgen(typescript_type = "Promise<number | undefined>")]
     pub type PromiseOptionSignatureId;
