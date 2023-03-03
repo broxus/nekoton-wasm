@@ -523,7 +523,7 @@ checksum = "93c0d11ac30a033511ae414355d80f70d9f29a44a49140face477117a1ee90db"
 [[package]]
 name = "nekoton"
 version = "0.11.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=master#0c7ab4f72ce7f07868864bf97d9af479b016b133"
+source = "git+https://github.com/broxus/nekoton.git?branch=master#2bb592876fb4eb0a457a4c2d397a0f93e53dfcd5"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -567,7 +567,7 @@ dependencies = [
 [[package]]
 name = "nekoton-abi"
 version = "0.11.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=master#0c7ab4f72ce7f07868864bf97d9af479b016b133"
+source = "git+https://github.com/broxus/nekoton.git?branch=master#2bb592876fb4eb0a457a4c2d397a0f93e53dfcd5"
 dependencies = [
  "anyhow",
  "base64",
@@ -593,7 +593,7 @@ dependencies = [
 [[package]]
 name = "nekoton-contracts"
 version = "0.11.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=master#0c7ab4f72ce7f07868864bf97d9af479b016b133"
+source = "git+https://github.com/broxus/nekoton.git?branch=master#2bb592876fb4eb0a457a4c2d397a0f93e53dfcd5"
 dependencies = [
  "anyhow",
  "nekoton-abi",
@@ -607,7 +607,7 @@ dependencies = [
 [[package]]
 name = "nekoton-derive"
 version = "0.11.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=master#0c7ab4f72ce7f07868864bf97d9af479b016b133"
+source = "git+https://github.com/broxus/nekoton.git?branch=master#2bb592876fb4eb0a457a4c2d397a0f93e53dfcd5"
 dependencies = [
  "either",
  "proc-macro2",
@@ -618,7 +618,7 @@ dependencies = [
 [[package]]
 name = "nekoton-utils"
 version = "0.11.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=master#0c7ab4f72ce7f07868864bf97d9af479b016b133"
+source = "git+https://github.com/broxus/nekoton.git?branch=master#2bb592876fb4eb0a457a4c2d397a0f93e53dfcd5"
 dependencies = [
  "anyhow",
  "base64",
@@ -639,7 +639,7 @@ dependencies = [
 
 [[package]]
 name = "nekoton-wasm"
-version = "1.0.17"
+version = "1.0.18"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -788,7 +788,7 @@ dependencies = [
  "libc",
  "redox_syscall",
  "smallvec",
- "windows-sys 0.45.0",
+ "windows-sys",
 ]
 
 [[package]]
@@ -1122,19 +1122,19 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.25.0"
+version = "1.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8e00990ebabbe4c14c08aca901caed183ecd5c09562a12c824bb53d3c3fd3af"
+checksum = "03201d01c3c27a29c8a5cee5b55a93ddae1ccf6f08f65365c2c918f8c1b76f64"
 dependencies = [
  "autocfg",
  "pin-project-lite",
- "windows-sys 0.42.0",
+ "windows-sys",
 ]
 
 [[package]]
 name = "ton_abi"
 version = "2.1.0"
-source = "git+https://github.com/broxus/ton-labs-abi.git#b22e4eb305c691d1f7f1298efc4a4dc1843b6be9"
+source = "git+https://github.com/broxus/ton-labs-abi.git#7c0c82f65d94e6fff8ea5822808cbc0ffeb1d0d7"
 dependencies = [
  "anyhow",
  "base64",
@@ -1357,21 +1357,6 @@ checksum = "e33b99f4b23ba3eec1a53ac264e35a755f00e966e0065077d6027c0f575b0b97"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "windows-sys"
-version = "0.42.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a3e1820f08b8513f676f7ab6c1f99ff312fb97b553d30ff4dd86f9f15728aa7"
-dependencies = [
- "windows_aarch64_gnullvm",
- "windows_aarch64_msvc",
- "windows_i686_gnu",
- "windows_i686_msvc",
- "windows_x86_64_gnu",
- "windows_x86_64_gnullvm",
- "windows_x86_64_msvc",
 ]
 
 [[package]]
