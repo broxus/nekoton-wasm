@@ -9,11 +9,185 @@ use crate::tokens_object::*;
 use crate::utils::*;
 
 #[wasm_bindgen(typescript_custom_section)]
-const NETWORK_DESCRIPTION: &str = r#"
+const MODELS: &str = r#"
 export type NetworkDescription = {
     globalId: number,
     capabilities: string,
     signatureId: number | undefined,
+};
+
+export type TransactionId = {
+    lt: string,
+    hash: string,
+};
+
+export type GenTimings = {
+    genLt: string,
+    genUtime: number,
+};
+
+export type LastTransactionId = {
+    isExact: boolean,
+    lt: string,
+    hash?: string,
+};
+
+export type ContractState = {
+    balance: string,
+    genTimings: GenTimings,
+    lastTransactionId?: LastTransactionId,
+    isDeployed: boolean,
+    codeHash?: string,
+};
+
+export type AccountStatus = 'uninit' | 'frozen' | 'active' | 'nonexist';
+
+export type Message = {
+    hash: string,
+    src?: string,
+    dst?: string,
+    value: string,
+    bounce: boolean,
+    bounced: boolean,
+    body?: string,
+    bodyHash?: string,
+};
+
+export type PendingTransaction = {
+    messageHash: string,
+    src?: string,
+    expireAt: number,
+};
+
+export type AccountsList = {
+  accounts: string[];
+  continuation: string | undefined;
+};
+
+export type TransactionsList = {
+    transactions: Transaction[];
+    continuation: TransactionId | undefined;
+};
+
+export type Transaction = {
+    id: TransactionId,
+    prevTransactionId?: TransactionId,
+    createdAt: number,
+    aborted: boolean,
+    exitCode?: number,
+    resultCode?: number,
+    origStatus: AccountStatus,
+    endStatus: AccountStatus,
+    totalFees: string,
+    inMessage: Message,
+    outMessages: Message[],
+};
+
+export type TransactionsBatchType = 'old' | 'new';
+
+export type TransactionsBatchInfo = {
+    minLt: string,
+    maxLt: string,
+    batchType: TransactionsBatchType,
+};
+
+export type StateInit = {
+    data: string | undefined;
+    code: string | undefined;
+};
+
+export type ExpectedAddress = {
+    stateInit: string;
+    address: string;
+    hash: string;
+};
+
+export type DecodedInput = {
+    method: string,
+    input: TokensObject,
+};
+
+export type DecodedEvent = {
+    event: string,
+    data: TokensObject,
+};
+
+export type DecodedOutput = {
+    method: string,
+    output: TokensObject,
+};
+
+export type DecodedTransaction = {
+    method: string,
+    input: TokensObject,
+    output: TokensObject,
+};
+
+export type DecodedTransactionEvents = Array<DecodedEvent>;
+
+export type TransactionExecutorOutput =
+    | { exitCode: number }
+    | { account: string, transaction: Transaction };
+
+export type ExecutionOutput = {
+    output?: TokensObject,
+    code: number,
+};
+
+export type MethodName = undefined | string | string[];
+
+export type AbiToken =
+    | null
+    | boolean
+    | string
+    | number
+    | { [K in string]: AbiToken }
+    | AbiToken[]
+    | (readonly [AbiToken, AbiToken])[];
+
+type TokensObject = { [K in string]: AbiToken };
+
+export type AbiParam = {
+  name: string;
+  type: string;
+  components?: AbiParam[];
+};
+
+export type LatestBlock = {
+    id: string,
+    endLt: string,
+    genUtime: number,
+};
+
+export type SignedMessage = {
+    hash: string,
+    expireAt: number,
+    boc: string,
+};
+
+export type PollingMethod = 'manual' | 'reliable';
+
+export type Ed25519KeyPair = {
+    publicKey: string,
+    secretKey: string,
+};
+
+export type ExtendedSignature = {
+    signature: string,
+    signatureHex: string,
+    signatureParts: {
+        high: string,
+        low: string,
+    }
+};
+
+export type FullContractState = {
+    balance: string;
+    genTimings: GenTimings;
+    lastTransactionId: LastTransactionId;
+    isDeployed: boolean;
+    codeHash?: string;
+    boc: string;
 };
 "#;
 
@@ -26,14 +200,6 @@ pub fn make_network_description(capabilities: models::NetworkCapabilities) -> Js
         .build()
 }
 
-#[wasm_bindgen(typescript_custom_section)]
-const TRANSACTION_ID: &str = r#"
-export type TransactionId = {
-    lt: string,
-    hash: string,
-};
-"#;
-
 pub fn make_transaction_id(data: nt::abi::TransactionId) -> TransactionId {
     ObjectBuilder::new()
         .set("lt", data.lt.to_string())
@@ -41,14 +207,6 @@ pub fn make_transaction_id(data: nt::abi::TransactionId) -> TransactionId {
         .build()
         .unchecked_into()
 }
-
-#[wasm_bindgen(typescript_custom_section)]
-const GEN_TIMINGS: &str = r#"
-export type GenTimings = {
-    genLt: string,
-    genUtime: number,
-};
-"#;
 
 pub fn make_gen_timings(data: nt::abi::GenTimings) -> GenTimings {
     let (gen_lt, gen_utime) = match data {
@@ -63,15 +221,6 @@ pub fn make_gen_timings(data: nt::abi::GenTimings) -> GenTimings {
         .unchecked_into()
 }
 
-#[wasm_bindgen(typescript_custom_section)]
-const LAST_TRANSACTION_ID: &str = r#"
-export type LastTransactionId = {
-    isExact: boolean,
-    lt: string,
-    hash?: string,
-};
-"#;
-
 pub fn make_last_transaction_id(data: nt::abi::LastTransactionId) -> LastTransactionId {
     let (lt, hash) = match data {
         nt::abi::LastTransactionId::Exact(id) => (id.lt, Some(id.hash.to_hex_string())),
@@ -85,17 +234,6 @@ pub fn make_last_transaction_id(data: nt::abi::LastTransactionId) -> LastTransac
         .build()
         .unchecked_into()
 }
-
-#[wasm_bindgen(typescript_custom_section)]
-const CONTRACT_STATE: &str = r#"
-export type ContractState = {
-    balance: string,
-    genTimings: GenTimings,
-    lastTransactionId?: LastTransactionId,
-    isDeployed: boolean,
-    codeHash?: string,
-};
-"#;
 
 pub fn make_contract_state(data: models::ContractState) -> ContractState {
     ObjectBuilder::new()
@@ -116,11 +254,6 @@ pub fn make_contract_state(data: models::ContractState) -> ContractState {
         .unchecked_into()
 }
 
-#[wasm_bindgen(typescript_custom_section)]
-const ACCOUNT_STATUS: &str = r#"
-export type AccountStatus = 'uninit' | 'frozen' | 'active' | 'nonexist';
-"#;
-
 fn make_account_status(data: nt::core::models::AccountStatus) -> AccountStatus {
     JsValue::from(match data {
         models::AccountStatus::Uninit => "uninit",
@@ -130,20 +263,6 @@ fn make_account_status(data: nt::core::models::AccountStatus) -> AccountStatus {
     })
     .unchecked_into()
 }
-
-#[wasm_bindgen(typescript_custom_section)]
-const MESSAGE: &str = r#"
-export type Message = {
-    hash: string,
-    src?: string,
-    dst?: string,
-    value: string,
-    bounce: boolean,
-    bounced: boolean,
-    body?: string,
-    bodyHash?: string,
-};
-"#;
 
 pub fn make_message(data: models::Message) -> Message {
     let (body, body_hash) = if let Some(body) = data.body {
@@ -168,15 +287,6 @@ pub fn make_message(data: models::Message) -> Message {
         .unchecked_into()
 }
 
-#[wasm_bindgen(typescript_custom_section)]
-const PENDING_TRANSACTION: &str = r#"
-export type PendingTransaction = {
-    messageHash: string,
-    src?: string,
-    expireAt: number,
-};
-"#;
-
 pub fn make_pending_transaction(data: models::PendingTransaction) -> PendingTransaction {
     ObjectBuilder::new()
         .set("messageHash", data.message_hash.to_hex_string())
@@ -185,14 +295,6 @@ pub fn make_pending_transaction(data: models::PendingTransaction) -> PendingTran
         .build()
         .unchecked_into()
 }
-
-#[wasm_bindgen(typescript_custom_section)]
-const ACCOUNTS_LIST: &'static str = r#"
-export type AccountsList = {
-  accounts: string[];
-  continuation: string | undefined;
-}
-"#;
 
 pub fn make_accounts_list(
     accounts: Vec<ton_block::MsgAddressInt>,
@@ -216,14 +318,6 @@ pub fn make_accounts_list(
         .build()
         .unchecked_into()
 }
-
-#[wasm_bindgen(typescript_custom_section)]
-const TRANSACTIONS_LIST: &'static str = r#"
-export type TransactionsList = {
-    transactions: Transaction[];
-    continuation: TransactionId | undefined;
-};
-"#;
 
 pub fn make_transactions_list(
     raw_transactions: Vec<nt::transport::models::RawTransaction>,
@@ -261,23 +355,6 @@ pub fn make_transactions_list(
         .unchecked_into()
 }
 
-#[wasm_bindgen(typescript_custom_section)]
-const TRANSACTION: &str = r#"
-export type Transaction = {
-    id: TransactionId,
-    prevTransactionId?: TransactionId,
-    createdAt: number,
-    aborted: boolean,
-    exitCode?: number,
-    resultCode?: number,
-    origStatus: AccountStatus,
-    endStatus: AccountStatus,
-    totalFees: string,
-    inMessage: Message,
-    outMessages: Message[],
-};
-"#;
-
 pub fn make_transaction(data: models::Transaction) -> Transaction {
     ObjectBuilder::new()
         .set("id", make_transaction_id(data.id))
@@ -305,17 +382,6 @@ pub fn make_transaction(data: models::Transaction) -> Transaction {
         .unchecked_into()
 }
 
-#[wasm_bindgen(typescript_custom_section)]
-const TRANSACTIONS_BATCH_INFO: &str = r#"
-export type TransactionsBatchType = 'old' | 'new';
-
-export type TransactionsBatchInfo = {
-    minLt: string,
-    maxLt: string,
-    batchType: TransactionsBatchType,
-};
-"#;
-
 pub fn make_transactions_batch_info(data: models::TransactionsBatchInfo) -> TransactionsBatchInfo {
     ObjectBuilder::new()
         .set("minLt", data.min_lt.to_string())
@@ -331,76 +397,6 @@ pub fn make_transactions_batch_info(data: models::TransactionsBatchInfo) -> Tran
         .unchecked_into()
 }
 
-#[wasm_bindgen(typescript_custom_section)]
-const STATE_INIT: &str = r#"
-export type StateInit = {
-    data: string | undefined;
-    code: string | undefined;
-};
-"#;
-
-#[wasm_bindgen(typescript_custom_section)]
-const EXPECTED_ADDRESS: &str = r#"
-export type ExpectedAddress = {
-    stateInit: string;
-    address: string;
-    hash: string;
-};
-"#;
-
-#[wasm_bindgen(typescript_custom_section)]
-const DECODED_INPUT: &str = r#"
-export type DecodedInput = {
-    method: string,
-    input: TokensObject,
-};
-"#;
-
-#[wasm_bindgen(typescript_custom_section)]
-const DECODED_EVENT: &str = r#"
-export type DecodedEvent = {
-    event: string,
-    data: TokensObject,
-};
-"#;
-
-#[wasm_bindgen(typescript_custom_section)]
-const DECODED_OUTPUT: &str = r#"
-export type DecodedOutput = {
-    method: string,
-    output: TokensObject,
-};
-"#;
-
-#[wasm_bindgen(typescript_custom_section)]
-const DECODED_TRANSACTION: &str = r#"
-export type DecodedTransaction = {
-    method: string,
-    input: TokensObject,
-    output: TokensObject,
-};
-"#;
-
-#[wasm_bindgen(typescript_custom_section)]
-const DECODED_TRANSACTION_EVENTS: &str = r#"
-export type DecodedTransactionEvents = Array<DecodedEvent>;
-"#;
-
-#[wasm_bindgen(typescript_custom_section)]
-const TRANSACTION_EXECUTOR_OUTPUT: &str = r#"
-export type TransactionExecutorOutput =
-    | { exitCode: number }
-    | { account: string, transaction: Transaction }
-"#;
-
-#[wasm_bindgen(typescript_custom_section)]
-const EXECUTION_OUTPUT: &str = r#"
-export type ExecutionOutput = {
-    output?: TokensObject,
-    code: number,
-};
-"#;
-
 pub fn make_execution_output(data: nt::abi::ExecutionOutput) -> Result<ExecutionOutput, JsValue> {
     Ok(ObjectBuilder::new()
         .set("output", data.tokens.map(make_tokens_object).transpose()?)
@@ -408,11 +404,6 @@ pub fn make_execution_output(data: nt::abi::ExecutionOutput) -> Result<Execution
         .build()
         .unchecked_into())
 }
-
-#[wasm_bindgen(typescript_custom_section)]
-const METHOD_NAME: &str = r#"
-export type MethodName = undefined | string | string[]
-"#;
 
 pub fn parse_method_name(value: MethodName) -> Result<nt::abi::MethodName, JsValue> {
     let value: JsValue = value.unchecked_into();
@@ -436,44 +427,6 @@ pub fn parse_method_name(value: MethodName) -> Result<nt::abi::MethodName, JsVal
         Err("Expected string or array").handle_error()
     }
 }
-
-#[wasm_bindgen(typescript_custom_section)]
-const TOKEN: &str = r#"
-export type AbiToken =
-    | null
-    | boolean
-    | string
-    | number
-    | { [K in string]: AbiToken }
-    | AbiToken[]
-    | (readonly [AbiToken, AbiToken])[];
-
-type TokensObject = { [K in string]: AbiToken };
-"#;
-
-#[wasm_bindgen(typescript_custom_section)]
-const PARAM: &str = r#"
-export type AbiParam = {
-  name: string;
-  type: string;
-  components?: AbiParam[];
-};
-"#;
-
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(typescript_type = "Promise<GenericContract>")]
-    pub type PromiseGenericContract;
-}
-
-#[wasm_bindgen(typescript_custom_section)]
-const LATEST_BLOCK: &'static str = r#"
-export type LatestBlock = {
-    id: string,
-    endLt: string,
-    genUtime: number,
-};
-"#;
 
 pub fn make_latest_block(latest_block: nt::transport::gql::LatestBlock) -> JsValue {
     ObjectBuilder::new()
@@ -524,15 +477,6 @@ impl UnsignedMessage {
     }
 }
 
-#[wasm_bindgen(typescript_custom_section)]
-const SIGNED_MESSAGE: &str = r#"
-export type SignedMessage = {
-    hash: string,
-    expireAt: number,
-    boc: string,
-};
-"#;
-
 pub fn make_signed_message(data: nt::crypto::SignedMessage) -> Result<SignedMessage, JsValue> {
     let (boc, hash) = {
         let cell = data.message.write_to_new_cell().handle_error()?.into();
@@ -572,11 +516,6 @@ pub fn parse_signed_message(data: SignedMessage) -> Result<nt::crypto::SignedMes
     Ok(nt::crypto::SignedMessage { message, expire_at })
 }
 
-#[wasm_bindgen(typescript_custom_section)]
-const POLLING_METHOD: &str = r#"
-export type PollingMethod = 'manual' | 'reliable';
-"#;
-
 pub fn make_polling_method(s: models::PollingMethod) -> PollingMethod {
     JsValue::from(match s {
         models::PollingMethod::Manual => "manual",
@@ -585,14 +524,6 @@ pub fn make_polling_method(s: models::PollingMethod) -> PollingMethod {
     .unchecked_into()
 }
 
-#[wasm_bindgen(typescript_custom_section)]
-const ED25519_KEY_PAIR: &'static str = r#"
-export type Ed25519KeyPair = {
-    publicKey: string,
-    secretKey: string,
-};
-"#;
-
 pub fn make_ed25519_key_pair(data: ed25519_dalek::Keypair) -> Ed25519KeyPair {
     ObjectBuilder::new()
         .set("publicKey", hex::encode(data.public.as_bytes()))
@@ -600,18 +531,6 @@ pub fn make_ed25519_key_pair(data: ed25519_dalek::Keypair) -> Ed25519KeyPair {
         .build()
         .unchecked_into()
 }
-
-#[wasm_bindgen(typescript_custom_section)]
-const EXTENDED_SIGNATURE: &str = r#"
-export type ExtendedSignature = {
-    signature: string,
-    signatureHex: string,
-    signatureParts: {
-        high: string,
-        low: string,
-    }
-};
-"#;
 
 pub fn make_extended_signature(signature: [u8; 64]) -> ExtendedSignature {
     ObjectBuilder::new()
@@ -627,18 +546,6 @@ pub fn make_extended_signature(signature: [u8; 64]) -> ExtendedSignature {
         .build()
         .unchecked_into()
 }
-
-#[wasm_bindgen(typescript_custom_section)]
-const FULL_CONTRACT_STATE: &'static str = r#"
-export type FullContractState = {
-    balance: string;
-    genTimings: GenTimings;
-    lastTransactionId: LastTransactionId;
-    isDeployed: boolean;
-    codeHash?: string;
-    boc: string;
-};
-"#;
 
 pub fn make_full_contract_state(
     contract_state: nt::transport::models::RawContractState,
@@ -803,6 +710,9 @@ extern "C" {
 
     #[wasm_bindgen(typescript_type = "Promise<FullContractState | undefined>")]
     pub type PromiseOptionFullContractState;
+
+    #[wasm_bindgen(typescript_type = "Promise<GenericContract>")]
+    pub type PromiseGenericContract;
 
     #[wasm_bindgen(typescript_type = "Promise<NetworkDescription>")]
     pub type PromiseNetworkDescription;
