@@ -71,7 +71,7 @@ pub fn make_full_account_boc(account_stuff_boc: Option<String>) -> Result<String
         Some(stuff) => ton_block::Account::Account(parse_account_stuff(&stuff)?),
         None => ton_block::Account::AccountNone,
     };
-    encode_to_base64_boc(&account)
+    serialize_into_boc(&account)
 }
 
 #[wasm_bindgen(js_name = "parseFullAccountBoc")]
@@ -170,7 +170,7 @@ pub fn execute_local(
     };
 
     Ok(ObjectBuilder::new()
-        .set("account", encode_cell_to_base64_boc(&account)?)
+        .set("account", make_boc(&account)?)
         .set("transaction", make_transaction(tx))
         .build()
         .unchecked_into())
@@ -198,8 +198,9 @@ pub fn get_expected_address(
     let repr_hash = cell.repr_hash().to_hex_string();
 
     Ok(ObjectBuilder::new()
-        .set("stateInit", encode_cell_to_base64_boc(&cell)?)
+        .set("stateInit", make_boc(&cell)?)
         .set("address", format!("{workchain_id}:{repr_hash}"))
+        .set("hash", repr_hash)
         .build()
         .unchecked_into())
 }
@@ -264,17 +265,14 @@ pub fn pack_into_cell(
     params: ParamsList,
     tokens: TokensObject,
     abi_version: Option<String>,
-) -> Result<PackedBoc, JsValue> {
+) -> Result<BocWithHash, JsValue> {
     let params = parse_params_list(params).handle_error()?;
     let tokens = parse_tokens_object(&params, tokens).handle_error()?;
 
     let abi_version = parse_optional_abi_version(abi_version)?;
-    let cell = nt::abi::pack_into_cell(&tokens, abi_version).handle_error()?;
-    Ok(ObjectBuilder::new()
-        .set("hash", cell.repr_hash().to_hex_string())
-        .set("boc", encode_cell_to_base64_boc(&cell)?)
-        .build()
-        .unchecked_into())
+    nt::abi::pack_into_cell(&tokens, abi_version)
+        .handle_error()
+        .and_then(make_boc_with_hash)
 }
 
 #[wasm_bindgen(js_name = "unpackFromCell")]
@@ -303,7 +301,7 @@ pub fn extract_contract_data(boc: &str) -> Result<Option<String>, JsValue> {
     };
 
     match data {
-        Some(data) => encode_cell_to_base64_boc(&data).map(Some),
+        Some(data) => make_boc(&data).map(Some),
         None => Ok(None),
     }
 }
@@ -356,20 +354,20 @@ pub fn extract_public_key(boc: &str) -> Result<String, JsValue> {
 }
 
 #[wasm_bindgen(js_name = "codeToTvc")]
-pub fn code_to_tvc(code: &str) -> Result<String, JsValue> {
+pub fn code_to_tvc(code: &str) -> Result<BocWithHash, JsValue> {
     let cell = parse_cell(code)?;
     let state_init = nt::abi::code_to_tvc(cell).handle_error()?;
-    encode_to_base64_boc(&state_init)
+    serialize_into_boc_with_hash(&state_init)
 }
 
 #[wasm_bindgen(js_name = "mergeTvc")]
-pub fn merge_tvc(code: &str, data: &str) -> Result<String, JsValue> {
+pub fn merge_tvc(code: &str, data: &str) -> Result<BocWithHash, JsValue> {
     let state_init = ton_block::StateInit {
         code: Some(parse_cell(code)?),
         data: Some(parse_cell(data)?),
         ..Default::default()
     };
-    encode_to_base64_boc(&state_init)
+    serialize_into_boc_with_hash(&state_init)
 }
 
 #[wasm_bindgen(js_name = "splitTvc")]
@@ -377,12 +375,12 @@ pub fn split_tvc(tvc: &str) -> Result<StateInit, JsValue> {
     let state_init = ton_block::StateInit::construct_from_base64(tvc).handle_error()?;
 
     let data = match state_init.data {
-        Some(data) => Some(encode_cell_to_base64_boc(&data)?),
+        Some(data) => Some(make_boc(&data)?),
         None => None,
     };
 
     let code = match state_init.code {
-        Some(code) => Some(encode_cell_to_base64_boc(&code)?),
+        Some(code) => Some(make_boc(&code)?),
         None => None,
     };
 
@@ -394,15 +392,15 @@ pub fn split_tvc(tvc: &str) -> Result<StateInit, JsValue> {
 }
 
 #[wasm_bindgen(js_name = "setCodeSalt")]
-pub fn set_code_salt(code: &str, salt: &str) -> Result<String, JsValue> {
+pub fn set_code_salt(code: &str, salt: &str) -> Result<BocWithHash, JsValue> {
     let cell = nt::abi::set_code_salt(parse_cell(code)?, parse_cell(salt)?).handle_error()?;
-    encode_cell_to_base64_boc(&cell)
+    make_boc_with_hash(cell)
 }
 
 #[wasm_bindgen(js_name = "getCodeSalt")]
 pub fn get_code_salt(code: &str) -> Result<Option<String>, JsValue> {
     match nt::abi::get_code_salt(parse_cell(code)?).handle_error()? {
-        Some(salt) => encode_cell_to_base64_boc(&salt).map(Some),
+        Some(salt) => make_boc(&salt).map(Some),
         None => Ok(None),
     }
 }
@@ -421,7 +419,7 @@ pub fn encode_internal_input(
         .encode_internal_input(&input)
         .and_then(|value| value.into_cell())
         .handle_error()?;
-    encode_cell_to_base64_boc(&body)
+    make_boc(&body)
 }
 
 #[wasm_bindgen(js_name = "encodeInternalMessage")]
@@ -462,7 +460,7 @@ pub fn encode_internal_message(
         message.set_body(parse_cell_slice(&body)?);
     }
 
-    encode_to_base64_boc(&message)
+    serialize_into_boc(&message)
 }
 
 #[wasm_bindgen(js_name = "decodeInput")]

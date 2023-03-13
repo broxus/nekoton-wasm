@@ -115,7 +115,7 @@ impl Transport {
                 .await
                 .handle_error()?;
 
-            let config = encode_to_base64_boc(config.raw_config())?;
+            let config = serialize_into_boc(config.raw_config())?;
             Ok(JsValue::from(config))
         }))
     }

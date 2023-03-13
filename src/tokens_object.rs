@@ -82,7 +82,7 @@ pub fn make_token_value(value: ton_abi::TokenValue) -> Result<JsValue, JsValue> 
                 .collect::<Result<js_sys::Array, _>>()
                 .map(JsCast::unchecked_into)?
         }
-        ton_abi::TokenValue::Cell(value) => JsValue::from(encode_cell_to_base64_boc(&value)?),
+        ton_abi::TokenValue::Cell(value) => JsValue::from(make_boc(&value)?),
         ton_abi::TokenValue::Map(_, _, values) => values
             .into_iter()
             .map(|(key, value)| {

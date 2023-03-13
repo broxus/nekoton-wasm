@@ -148,7 +148,7 @@ export type Message = {
 pub fn make_message(data: models::Message) -> Message {
     let (body, body_hash) = if let Some(body) = data.body {
         (
-            Some(encode_cell_to_base64_boc(&body.data).expect("Shouldn't fail")),
+            Some(make_boc(&body.data).expect("Shouldn't fail")),
             Some(body.hash.to_hex_string()),
         )
     } else {
@@ -344,6 +344,7 @@ const EXPECTED_ADDRESS: &str = r#"
 export type ExpectedAddress = {
     stateInit: string;
     address: string;
+    hash: string;
 };
 "#;
 
@@ -535,7 +536,7 @@ export type SignedMessage = {
 pub fn make_signed_message(data: nt::crypto::SignedMessage) -> Result<SignedMessage, JsValue> {
     let (boc, hash) = {
         let cell = data.message.write_to_new_cell().handle_error()?.into();
-        (encode_cell_to_base64_boc(&cell)?, cell.repr_hash())
+        (make_boc(&cell)?, cell.repr_hash())
     };
 
     Ok(ObjectBuilder::new()
@@ -669,12 +670,25 @@ pub fn make_full_contract_state(
                     ),
                 )
                 .set("codeHash", code_hash)
-                .set("boc", encode_to_base64_boc(&state.account)?)
+                .set("boc", serialize_into_boc(&state.account)?)
                 .build()
                 .unchecked_into())
         }
         nt::transport::models::RawContractState::NotExists => Ok(JsValue::undefined()),
     }
+}
+
+pub fn make_boc_with_hash(cell: ton_types::Cell) -> Result<BocWithHash, JsValue> {
+    Ok(ObjectBuilder::new()
+        .set("hash", cell.repr_hash().to_hex_string())
+        .set("boc", make_boc(&cell)?)
+        .build()
+        .unchecked_into())
+}
+
+pub fn serialize_into_boc_with_hash(data: &dyn Serializable) -> Result<BocWithHash, JsValue> {
+    let cell = data.serialize().handle_error()?;
+    make_boc_with_hash(cell)
 }
 
 #[wasm_bindgen]
@@ -743,7 +757,7 @@ extern "C" {
     pub type ExpectedAddress;
 
     #[wasm_bindgen(typescript_type = "{ hash: string, boc: string, }")]
-    pub type PackedBoc;
+    pub type BocWithHash;
 
     #[wasm_bindgen(typescript_type = "{ publicKey?: string, data: TokensObject }")]
     pub type InitData;
