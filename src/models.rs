@@ -742,6 +742,12 @@ extern "C" {
     #[wasm_bindgen(typescript_type = "ExpectedAddress")]
     pub type ExpectedAddress;
 
+    #[wasm_bindgen(typescript_type = "{ hash: string, boc: string, }")]
+    pub type PackedBoc;
+
+    #[wasm_bindgen(typescript_type = "{ publicKey?: string, data: TokensObject }")]
+    pub type InitData;
+
     #[wasm_bindgen(typescript_type = "DecodedInput")]
     pub type DecodedInput;
 

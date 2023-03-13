@@ -204,6 +204,56 @@ pub fn get_expected_address(
         .unchecked_into())
 }
 
+#[wasm_bindgen(js_name = "unpackInitData")]
+pub fn unpack_init_data(contract_abi: &str, data: &str) -> Result<InitData, JsValue> {
+    type UnpackedData = (Option<ed25519_dalek::PublicKey>, Vec<ton_abi::Token>);
+
+    fn unpack_init_data_impl(
+        contract_abi: ton_abi::Contract,
+        data: ton_types::Cell,
+    ) -> anyhow::Result<UnpackedData> {
+        let data: ton_types::SliceData = data.into();
+        let map = ton_types::HashmapE::with_hashmap(
+            ton_abi::Contract::DATA_MAP_KEYLEN,
+            data.reference_opt(0),
+        );
+
+        let pubkey = match map.get(0u64.serialize()?.into())? {
+            Some(mut pubkey) => {
+                let pubkey = pubkey.get_next_hash()?;
+                Some(ed25519_dalek::PublicKey::from_bytes(pubkey.as_slice())?)
+            }
+            None => None,
+        };
+
+        let mut tokens = Vec::with_capacity(contract_abi.data.len());
+        for item in contract_abi.data.into_values() {
+            if let Some(value) = map.get(item.key.serialize()?.into())? {
+                tokens.append(&mut ton_abi::TokenValue::decode_params(
+                    &[item.value],
+                    value,
+                    &contract_abi.abi_version,
+                    false,
+                )?);
+            }
+        }
+
+        Ok((pubkey, tokens))
+    }
+
+    let contract_abi = parse_contract_abi(contract_abi)?;
+    let data = parse_cell(data)?;
+
+    let (pubkey, data) = unpack_init_data_impl(contract_abi, data).handle_error()?;
+    let data = make_tokens_object(data)?;
+
+    Ok(ObjectBuilder::new()
+        .set("publicKey", pubkey.map(hex::encode))
+        .set("data", data)
+        .build()
+        .unchecked_into())
+}
+
 #[wasm_bindgen(js_name = "getBocHash")]
 pub fn get_boc_hash(boc: &str) -> Result<String, JsValue> {
     Ok(parse_cell(boc)?.repr_hash().to_hex_string())
@@ -214,13 +264,17 @@ pub fn pack_into_cell(
     params: ParamsList,
     tokens: TokensObject,
     abi_version: Option<String>,
-) -> Result<String, JsValue> {
+) -> Result<PackedBoc, JsValue> {
     let params = parse_params_list(params).handle_error()?;
     let tokens = parse_tokens_object(&params, tokens).handle_error()?;
 
     let abi_version = parse_optional_abi_version(abi_version)?;
     let cell = nt::abi::pack_into_cell(&tokens, abi_version).handle_error()?;
-    encode_cell_to_base64_boc(&cell)
+    Ok(ObjectBuilder::new()
+        .set("hash", cell.repr_hash().to_hex_string())
+        .set("boc", encode_cell_to_base64_boc(&cell)?)
+        .build()
+        .unchecked_into())
 }
 
 #[wasm_bindgen(js_name = "unpackFromCell")]
