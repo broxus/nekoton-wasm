@@ -205,6 +205,34 @@ pub fn get_expected_address(
         .unchecked_into())
 }
 
+#[wasm_bindgen(js_name = "unpackContractFields")]
+pub fn unpack_contract_fields(
+    contract_abi: &str,
+    boc: &str,
+    allow_partial: bool,
+) -> Result<Option<TokensObject>, JsValue> {
+    let contract = parse_contract_abi(contract_abi)?;
+    let account_stuff = parse_account_stuff(boc)?;
+
+    let data = match account_stuff.storage.state {
+        ton_block::AccountState::AccountActive { state_init } => match state_init.data {
+            Some(data) => data,
+            None => return Err("Contract state data is empty").handle_error(),
+        },
+        _ => return Ok(None),
+    };
+
+    let tokens = ton_abi::TokenValue::decode_params(
+        &contract.fields,
+        data.into(),
+        &contract.abi_version,
+        allow_partial,
+    )
+    .handle_error()?;
+
+    make_tokens_object(tokens).map(Some)
+}
+
 #[wasm_bindgen(js_name = "unpackInitData")]
 pub fn unpack_init_data(contract_abi: &str, data: &str) -> Result<InitData, JsValue> {
     type UnpackedData = (Option<ed25519_dalek::PublicKey>, Vec<ton_abi::Token>);
