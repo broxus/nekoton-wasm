@@ -1,12 +1,15 @@
+use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use nt::core::models;
 use ton_block::{Deserializable, Serializable};
+use ton_types::UInt256;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
 use crate::tokens_object::*;
 use crate::utils::*;
+use crate::TransactionTree;
 
 #[wasm_bindgen(typescript_custom_section)]
 const MODELS: &str = r#"
@@ -189,6 +192,12 @@ export type FullContractState = {
     codeHash?: string;
     boc: string;
 };
+
+export type TransactionTree = {
+    root: Transaction,
+    children: TransactionTree[]
+};
+
 "#;
 
 // TODO: add zerostate hash
@@ -346,7 +355,7 @@ pub fn make_transactions_list(
                     nt::core::models::Transaction::try_from((transaction.hash, transaction.data))
                         .ok()
                 })
-                .map(make_transaction)
+                .map(|x| make_transaction(x, None))
                 .collect::<js_sys::Array>(),
         )
         .set("continuation", continuation.map(make_transaction_id))
@@ -355,7 +364,40 @@ pub fn make_transactions_list(
         .unchecked_into()
 }
 
-pub fn make_transaction(data: models::Transaction) -> Transaction {
+pub fn make_transaction(
+    data: models::Transaction,
+    message_map: Option<&mut HashMap<UInt256, JsValue>>,
+) -> Transaction {
+    let (in_msg, out_msg) = match message_map {
+        Some(map) => {
+            let message = map.remove(&data.in_msg.hash);
+            let in_msg = match message {
+                Some(m) => m.unchecked_into(),
+                None => make_message(data.in_msg),
+            };
+
+            let mut out_msgs = Vec::<Message>::new();
+            for m in data.out_msgs {
+                let hash = m.hash;
+                let js_value = JsValue::from(make_message(m));
+                out_msgs.push(js_value.clone().unchecked_into());
+                map.insert(hash, js_value);
+            }
+            let out_msgs = js_sys::Array::from_iter(out_msgs.iter());
+            (in_msg, out_msgs)
+        }
+        None => {
+            let in_msg = make_message(data.in_msg);
+            let out_msgs = data
+                .out_msgs
+                .into_iter()
+                .map(make_message)
+                .map(JsValue::from)
+                .collect::<js_sys::Array>();
+            (in_msg, out_msgs)
+        }
+    };
+
     ObjectBuilder::new()
         .set("id", make_transaction_id(data.id))
         .set(
@@ -369,15 +411,30 @@ pub fn make_transaction(data: models::Transaction) -> Transaction {
         .set("origStatus", make_account_status(data.orig_status))
         .set("endStatus", make_account_status(data.end_status))
         .set("totalFees", data.total_fees.to_string())
-        .set("inMessage", make_message(data.in_msg))
-        .set(
-            "outMessages",
-            data.out_msgs
-                .into_iter()
-                .map(make_message)
-                .map(JsValue::from)
-                .collect::<js_sys::Array>(),
-        )
+        .set("inMessage", in_msg)
+        .set("outMessages", out_msg)
+        .build()
+        .unchecked_into()
+}
+
+pub fn make_transaction_tree(data: TransactionTree) -> JsTransactionTree {
+    let mut message_map = HashMap::<UInt256, JsValue>::new();
+    make_node(data, &mut message_map)
+}
+
+fn make_node(
+    data: TransactionTree,
+    message_map: &mut HashMap<UInt256, JsValue>,
+) -> JsTransactionTree {
+    let mut children: Vec<JsValue> = Vec::new();
+    for c in data.children {
+        let child = make_node(c, message_map);
+        children.push(child.obj);
+    }
+
+    ObjectBuilder::new()
+        .set("root", make_transaction(data.root, Some(message_map)))
+        .set("children", js_sys::Array::from_iter(children.iter()))
         .build()
         .unchecked_into()
 }
@@ -725,4 +782,7 @@ extern "C" {
 
     #[wasm_bindgen(typescript_type = "ExtendedSignature")]
     pub type ExtendedSignature;
+
+    #[wasm_bindgen(typescript_type = "TransactionTree")]
+    pub type JsTransactionTree;
 }

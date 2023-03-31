@@ -60,7 +60,7 @@ impl GenericContract {
                 .execute_transaction_locally(&message.message, params)
                 .await
                 .handle_error()?;
-            Ok(make_transaction(transaction).unchecked_into())
+            Ok(make_transaction(transaction, None).unchecked_into())
         })))
     }
 
@@ -198,10 +198,9 @@ impl nt::core::generic_contract::GenericContractSubscriptionHandler
         pending_transaction: nt::core::models::PendingTransaction,
         transaction: Option<nt::core::models::Transaction>,
     ) {
-        self.inner.on_message_sent(
-            make_pending_transaction(pending_transaction),
-            transaction.map(make_transaction),
-        );
+        let transaction = transaction.map(|x| make_transaction(x, None));
+        self.inner
+            .on_message_sent(make_pending_transaction(pending_transaction), transaction);
     }
 
     fn on_message_expired(&self, pending_transaction: nt::core::models::PendingTransaction) {
@@ -221,7 +220,7 @@ impl nt::core::generic_contract::GenericContractSubscriptionHandler
         self.inner.on_transactions_found(
             transactions
                 .into_iter()
-                .map(make_transaction)
+                .map(|x| make_transaction(x, None))
                 .map(JsValue::from)
                 .collect::<js_sys::Array>()
                 .unchecked_into(),

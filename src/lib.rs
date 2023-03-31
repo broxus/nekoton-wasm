@@ -171,7 +171,7 @@ pub fn execute_local(
 
     Ok(ObjectBuilder::new()
         .set("account", make_boc(&account)?)
-        .set("transaction", make_transaction(tx))
+        .set("transaction", make_transaction(tx, None))
         .build()
         .unchecked_into())
 }
@@ -697,6 +697,63 @@ pub fn decode_transaction_events(
         .collect::<Result<js_sys::Array, JsValue>>()?;
 
     Ok(events.unchecked_into())
+}
+
+#[wasm_bindgen(js_name = "unpackTransactionTree")]
+pub fn unpack_tree(boc: &str) -> Result<JsTransactionTree, JsValue> {
+    let bytes = base64::decode(boc).handle_error()?;
+    let cell = ton_types::deserialize_tree_of_cells(&mut bytes.as_slice()).handle_error()?;
+    let slice = ton_types::SliceData::from(cell);
+    let tree = TransactionTree::unpack(slice).handle_error()?;
+    Ok(make_transaction_tree(tree))
+}
+
+pub struct TransactionTree {
+    root: nt::core::models::Transaction,
+    children: Vec<TransactionTree>,
+}
+
+impl TransactionTree {
+    pub fn unpack(mut slice: ton_types::SliceData) -> anyhow::Result<Self> {
+        if !slice.get_next_bit()? {
+            return Err(anyhow::Error::msg("Invalid transaction tree node"));
+        }
+        let mut root = {
+            let cell = slice.checked_drain_reference()?;
+            Self::unpack_only_root(cell)?
+        };
+
+        Self::unpack_children(slice, &mut root)?;
+
+        Ok(root)
+    }
+
+    fn unpack_only_root(cell: ton_types::Cell) -> anyhow::Result<Self> {
+        let hash = cell.repr_hash();
+        let data = ton_block::Transaction::construct_from_cell(cell)?;
+        let transaction = nt::core::models::Transaction::try_from((hash, data))?;
+        Ok(Self {
+            root: transaction,
+            children: Vec::new(),
+        })
+    }
+
+    fn unpack_children(
+        mut slice: ton_types::SliceData,
+        root: &mut TransactionTree,
+    ) -> anyhow::Result<()> {
+        while let Ok(bit) = slice.get_next_bit() {
+            let cell = slice.checked_drain_reference()?;
+            let slice = ton_types::SliceData::from(&cell);
+
+            if bit {
+                root.children.push(Self::unpack(slice)?);
+            } else {
+                Self::unpack_children(slice, root)?
+            }
+        }
+        Ok(())
+    }
 }
 
 #[wasm_bindgen(js_name = "getDataHash")]
