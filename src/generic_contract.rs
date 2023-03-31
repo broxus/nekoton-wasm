@@ -200,7 +200,7 @@ impl nt::core::generic_contract::GenericContractSubscriptionHandler
     ) {
         self.inner.on_message_sent(
             make_pending_transaction(pending_transaction),
-            transaction.map(|x| make_transaction(x)),
+            transaction.map(make_transaction),
         );
     }
 
