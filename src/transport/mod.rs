@@ -231,7 +231,7 @@ impl Transport {
                         transaction.hash,
                         transaction.data,
                     ))
-                    .map(|x| make_transaction(x, None))
+                    .map(make_transaction)
                     .handle_error()?
                     .unchecked_into(),
                     None => JsValue::undefined(),
@@ -260,7 +260,7 @@ impl Transport {
                         transaction.hash,
                         transaction.data,
                     ))
-                    .map(|x| make_transaction(x, None))
+                    .map(make_transaction)
                     .handle_error()?
                     .unchecked_into(),
                     None => JsValue::undefined(),

@@ -273,8 +273,8 @@ fn make_account_status(data: nt::core::models::AccountStatus) -> AccountStatus {
     .unchecked_into()
 }
 
-pub fn make_message(data: models::Message) -> Message {
-    let (body, body_hash) = if let Some(body) = data.body {
+pub fn make_message(data: &models::Message) -> JsValue {
+    let (body, body_hash) = if let Some(body) = &data.body {
         (
             Some(make_boc(&body.data).expect("Shouldn't fail")),
             Some(body.hash.to_hex_string()),
@@ -355,7 +355,7 @@ pub fn make_transactions_list(
                     nt::core::models::Transaction::try_from((transaction.hash, transaction.data))
                         .ok()
                 })
-                .map(|x| make_transaction(x, None))
+                .map(make_transaction)
                 .collect::<js_sys::Array>(),
         )
         .set("continuation", continuation.map(make_transaction_id))
@@ -364,39 +364,34 @@ pub fn make_transactions_list(
         .unchecked_into()
 }
 
-pub fn make_transaction(
-    data: models::Transaction,
-    message_map: Option<&mut HashMap<UInt256, JsValue>>,
-) -> Transaction {
-    let (in_msg, out_msg) = match message_map {
-        Some(map) => {
-            let message = map.remove(&data.in_msg.hash);
-            let in_msg = match message {
-                Some(m) => m.unchecked_into(),
-                None => make_message(data.in_msg),
-            };
+pub fn make_transaction(data: models::Transaction) -> Transaction {
+    make_transaction_ext(data, None)
+}
 
-            let mut out_msgs = Vec::<Message>::new();
-            for m in data.out_msgs {
-                let hash = m.hash;
-                let js_value = JsValue::from(make_message(m));
-                out_msgs.push(js_value.clone().unchecked_into());
-                map.insert(hash, js_value);
+pub fn make_transaction_ext(
+    data: models::Transaction,
+    mut message_map: Option<&mut HashMap<UInt256, JsValue>>,
+) -> Transaction {
+    let in_msg = 'msg: {
+        if let Some(map) = &mut message_map {
+            if let Some(msg) = map.remove(&data.in_msg.hash) {
+                break 'msg msg;
             }
-            let out_msgs = js_sys::Array::from_iter(out_msgs.iter());
-            (in_msg, out_msgs)
         }
-        None => {
-            let in_msg = make_message(data.in_msg);
-            let out_msgs = data
-                .out_msgs
-                .into_iter()
-                .map(make_message)
-                .map(JsValue::from)
-                .collect::<js_sys::Array>();
-            (in_msg, out_msgs)
-        }
+        make_message(&data.in_msg)
     };
+
+    let out_msgs = data
+        .out_msgs
+        .into_iter()
+        .map(|msg| {
+            let value = make_message(&msg);
+            if let (true, Some(map)) = (msg.dst.is_some(), &mut message_map) {
+                map.insert(msg.hash, value.clone());
+            }
+            value
+        })
+        .collect::<js_sys::Array>();
 
     ObjectBuilder::new()
         .set("id", make_transaction_id(data.id))
@@ -412,14 +407,13 @@ pub fn make_transaction(
         .set("endStatus", make_account_status(data.end_status))
         .set("totalFees", data.total_fees.to_string())
         .set("inMessage", in_msg)
-        .set("outMessages", out_msg)
+        .set("outMessages", out_msgs)
         .build()
         .unchecked_into()
 }
 
 pub fn make_transaction_tree(data: TransactionTree) -> JsTransactionTree {
-    let mut message_map = HashMap::<UInt256, JsValue>::new();
-    make_node(data, &mut message_map)
+    make_node(data, &mut HashMap::new())
 }
 
 fn make_node(
@@ -433,7 +427,7 @@ fn make_node(
     }
 
     ObjectBuilder::new()
-        .set("root", make_transaction(data.root, Some(message_map)))
+        .set("root", make_transaction_ext(data.root, Some(message_map)))
         .set("children", js_sys::Array::from_iter(children.iter()))
         .build()
         .unchecked_into()

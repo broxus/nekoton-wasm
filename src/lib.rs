@@ -171,7 +171,7 @@ pub fn execute_local(
 
     Ok(ObjectBuilder::new()
         .set("account", make_boc(&account)?)
-        .set("transaction", make_transaction(tx, None))
+        .set("transaction", make_transaction(tx))
         .build()
         .unchecked_into())
 }
