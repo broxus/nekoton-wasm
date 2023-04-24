@@ -141,7 +141,8 @@ pub fn parse_state_init(state_init: &str) -> Result<ton_block::StateInit, JsValu
 }
 
 pub fn parse_cell_slice(boc: &str) -> Result<ton_types::SliceData, JsValue> {
-    parse_cell(boc).map(From::from)
+    let cell = parse_cell(boc)?;
+    ton_types::SliceData::load_cell(cell).handle_error()
 }
 
 pub fn parse_cell(boc: &str) -> Result<ton_types::Cell, JsValue> {
@@ -194,7 +195,7 @@ pub fn parse_account_stuff(boc: &str) -> Result<ton_block::AccountStuff, JsValue
     let bytes = base64::decode(boc).handle_error()?;
     ton_types::deserialize_tree_of_cells(&mut bytes.as_slice())
         .and_then(|cell| {
-            let slice = &mut cell.into();
+            let slice = &mut ton_types::SliceData::load_cell(cell)?;
             Ok(ton_block::AccountStuff {
                 addr: Deserializable::construct_from(slice)?,
                 storage_stat: Deserializable::construct_from(slice)?,
@@ -228,6 +229,14 @@ pub fn make_boc(data: &ton_types::Cell) -> Result<String, JsValue> {
     ton_types::serialize_toc(data)
         .handle_error()
         .map(base64::encode)
+}
+
+pub fn serialize_state_init_data_key(key: u64) -> ton_types::SliceData {
+    use ton_block::Serializable;
+
+    key.serialize()
+        .and_then(ton_types::SliceData::load_cell)
+        .trust_me()
 }
 
 #[wasm_bindgen(typescript_custom_section)]
@@ -299,4 +308,6 @@ pub enum TokensJsonError {
     ParamTypeExpected,
     #[error("Invalid components")]
     InvalidComponents,
+    #[error("Integer overflow")]
+    IntegerOverflow,
 }

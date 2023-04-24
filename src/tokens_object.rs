@@ -23,7 +23,7 @@ pub fn insert_init_data(
 
     if let Some(public_key) = public_key {
         map.set_builder(
-            0u64.write_to_new_cell().trust_me().into(),
+            serialize_state_init_data_key(0),
             ton_types::BuilderData::new()
                 .append_raw(public_key.as_bytes(), 256)
                 .trust_me(),
@@ -46,12 +46,14 @@ pub fn insert_init_data(
                 .pack_into_chain(&contract_abi.abi_version)
                 .handle_error()?;
 
-            map.set_builder(param.key.write_to_new_cell().trust_me().into(), &builder)
+            map.set_builder(serialize_state_init_data_key(param.key), &builder)
                 .handle_error()?;
         }
     }
 
-    map.write_to_new_cell().map(From::from).handle_error()
+    map.write_to_new_cell()
+        .and_then(ton_types::SliceData::load_builder)
+        .handle_error()
 }
 
 pub fn make_tokens_object(tokens: Vec<ton_abi::Token>) -> Result<TokensObject, JsValue> {
@@ -100,7 +102,7 @@ pub fn make_token_value(value: ton_abi::TokenValue) -> Result<JsValue, JsValue> 
             JsValue::from(base64::encode(value))
         }
         ton_abi::TokenValue::String(value) => JsValue::from(value),
-        ton_abi::TokenValue::Token(value) => JsValue::from(value.0.to_string()),
+        ton_abi::TokenValue::Token(value) => JsValue::from(value.as_u128().to_string()),
         ton_abi::TokenValue::Time(value) => JsValue::from(value.to_string()),
         ton_abi::TokenValue::Expire(value) => JsValue::from(value),
         ton_abi::TokenValue::PublicKey(value) => {
@@ -359,7 +361,9 @@ pub fn parse_token_value(
                 Err(TokensJsonError::NumberExpected)
             }?;
 
-            ton_abi::TokenValue::Token(ton_block::Grams(value))
+            ton_abi::TokenValue::Token(
+                ton_block::Grams::new(value).map_err(|_| TokensJsonError::IntegerOverflow)?,
+            )
         }
         ton_abi::ParamType::Time => {
             let value = if let Some(value) = value.as_string() {

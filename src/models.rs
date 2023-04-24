@@ -530,7 +530,11 @@ impl UnsignedMessage {
 
 pub fn make_signed_message(data: nt::crypto::SignedMessage) -> Result<SignedMessage, JsValue> {
     let (boc, hash) = {
-        let cell = data.message.write_to_new_cell().handle_error()?.into();
+        let cell = data
+            .message
+            .write_to_new_cell()
+            .and_then(ton_types::BuilderData::into_cell)
+            .handle_error()?;
         (make_boc(&cell)?, cell.repr_hash())
     };
 
@@ -614,7 +618,10 @@ pub fn make_full_contract_state(
             };
 
             Ok(ObjectBuilder::new()
-                .set("balance", state.account.storage.balance.grams.0.to_string())
+                .set(
+                    "balance",
+                    state.account.storage.balance.grams.as_u128().to_string(),
+                )
                 .set("genTimings", make_gen_timings(state.timings))
                 .set(
                     "lastTransactionId",

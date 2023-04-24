@@ -189,7 +189,8 @@ pub fn get_expected_address(
     let public_key = public_key.as_deref().map(parse_public_key).transpose()?;
 
     state_init.data = if let Some(data) = state_init.data.take() {
-        Some(insert_init_data(contract_abi, data.into(), &public_key, init_data)?.into_cell())
+        let data = ton_types::SliceData::load_cell(data).handle_error()?;
+        Some(insert_init_data(contract_abi, data, &public_key, init_data)?.into_cell())
     } else {
         None
     };
@@ -216,7 +217,7 @@ pub fn unpack_contract_fields(
 
     let data = match account_stuff.storage.state {
         ton_block::AccountState::AccountActive { state_init } => match state_init.data {
-            Some(data) => data,
+            Some(data) => ton_types::SliceData::load_cell(data).handle_error()?,
             None => return Err("Contract state data is empty").handle_error(),
         },
         _ => return Ok(None),
@@ -224,7 +225,7 @@ pub fn unpack_contract_fields(
 
     let tokens = ton_abi::TokenValue::decode_params(
         &contract.fields,
-        data.into(),
+        data,
         &contract.abi_version,
         allow_partial,
     )
@@ -241,13 +242,13 @@ pub fn unpack_init_data(contract_abi: &str, data: &str) -> Result<InitData, JsVa
         contract_abi: ton_abi::Contract,
         data: ton_types::Cell,
     ) -> anyhow::Result<UnpackedData> {
-        let data: ton_types::SliceData = data.into();
+        let data = ton_types::SliceData::load_cell(data)?;
         let map = ton_types::HashmapE::with_hashmap(
             ton_abi::Contract::DATA_MAP_KEYLEN,
             data.reference_opt(0),
         );
 
-        let pubkey = match map.get(0u64.serialize()?.into())? {
+        let pubkey = match map.get(serialize_state_init_data_key(0))? {
             Some(mut pubkey) => {
                 let pubkey = pubkey.get_next_hash()?;
                 Some(ed25519_dalek::PublicKey::from_bytes(pubkey.as_slice())?)
@@ -257,7 +258,7 @@ pub fn unpack_init_data(contract_abi: &str, data: &str) -> Result<InitData, JsVa
 
         let mut tokens = Vec::with_capacity(contract_abi.data.len());
         for item in contract_abi.data.into_values() {
-            if let Some(value) = map.get(item.key.serialize()?.into())? {
+            if let Some(value) = map.get(serialize_state_init_data_key(item.key))? {
                 tokens.append(&mut ton_abi::TokenValue::decode_params(
                     &[item.value],
                     value,
@@ -370,7 +371,8 @@ pub fn extract_public_key(boc: &str) -> Result<String, JsValue> {
         }
     }
 
-    let data = ton_types::SliceData::from(data)
+    let mut data = ton_types::SliceData::load_cell_ref(data).handle_error()?;
+    let data = data
         .get_next_bytes(32)
         .map_err(|_| nt::abi::ExtractionError::CellUnderflow)
         .handle_error()?;
@@ -702,8 +704,9 @@ pub fn decode_transaction_events(
 #[wasm_bindgen(js_name = "unpackTransactionTree")]
 pub fn unpack_tree(boc: &str) -> Result<JsTransactionTree, JsValue> {
     let bytes = base64::decode(boc).handle_error()?;
-    let cell = ton_types::deserialize_tree_of_cells(&mut bytes.as_slice()).handle_error()?;
-    let slice = ton_types::SliceData::from(cell);
+    let slice = ton_types::deserialize_tree_of_cells(&mut bytes.as_slice())
+        .and_then(ton_types::SliceData::load_cell)
+        .handle_error()?;
     let tree = TransactionTree::unpack(slice).handle_error()?;
     Ok(make_transaction_tree(tree))
 }
@@ -744,7 +747,7 @@ impl TransactionTree {
     ) -> anyhow::Result<()> {
         while let Ok(bit) = slice.get_next_bit() {
             let cell = slice.checked_drain_reference()?;
-            let slice = ton_types::SliceData::from(&cell);
+            let slice = ton_types::SliceData::load_cell(cell)?;
 
             if bit {
                 root.children.push(Self::unpack(slice)?);
@@ -874,6 +877,7 @@ pub fn create_external_message_without_signature(
     // Encode body
     let body = method
         .encode_input(&header, &input, false, None, Some(dst.clone()))
+        .and_then(ton_types::SliceData::load_builder)
         .handle_error()?;
 
     // Build message
@@ -885,7 +889,7 @@ pub fn create_external_message_without_signature(
     if let Some(state_init) = state_init {
         message.set_state_init(parse_state_init(&state_init)?);
     }
-    message.set_body(body.into());
+    message.set_body(body);
 
     // Serialize message
     make_signed_message(nt::crypto::SignedMessage {
