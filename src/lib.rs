@@ -148,6 +148,7 @@ pub fn execute_local(
         block_unixtime: utime,
         block_lt: last_trans_lt + 10,
         last_tr_lt: Arc::new(AtomicU64::new(last_trans_lt)),
+        behavior_modifiers: Some(executor.behavior_modifiers()),
         ..Default::default()
     };
 
