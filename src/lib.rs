@@ -46,21 +46,28 @@ pub fn run_local(
     method: &str,
     input: TokensObject,
     responsible: bool,
+    signature_id: Option<i32>,
 ) -> Result<ExecutionOutput, JsValue> {
     let account_stuff = parse_account_stuff(account_stuff_boc)?;
     let contract_abi = parse_contract_abi(contract_abi)?;
     let method = contract_abi.function(method).handle_error()?;
     let input = parse_tokens_object(&method.inputs, input).handle_error()?;
 
-    let output = if responsible {
-        method
-            .run_local_responsible(clock.inner.as_ref(), account_stuff, &input)
-            .handle_error()?
-    } else {
-        method
-            .run_local(clock.inner.as_ref(), account_stuff, &input)
-            .handle_error()?
-    };
+    let mut config = nt::abi::BriefBlockchainConfig::default();
+    if let Some(signature_id) = signature_id {
+        config.global_id = signature_id;
+        config.capabilities |= ton_block::GlobalCapabilities::CapSignatureWithId as u64;
+    }
+
+    let output = method
+        .run_local_ext(
+            clock.inner.as_ref(),
+            account_stuff,
+            &input,
+            responsible,
+            &config,
+        )
+        .handle_error()?;
 
     make_execution_output(output)
 }
@@ -107,6 +114,7 @@ pub fn execute_local(
     utime: u32,
     disable_signature_check: bool,
     overwrite_balance: Option<String>,
+    global_id: Option<i32>,
 ) -> Result<TransactionExecutorOutput, JsValue> {
     let mut account = parse_cell(account)?;
     let last_trans_lt = ton_block::Account::construct_from_cell(account.clone())
@@ -138,8 +146,10 @@ pub fn execute_local(
         account = new_account.serialize().handle_error()?;
     };
 
+    let global_id = global_id.unwrap_or(42);
+
     let config = ton_block::ConfigParams::construct_from_base64(config).handle_error()?;
-    let config = ton_executor::BlockchainConfig::with_config(config).handle_error()?;
+    let config = ton_executor::BlockchainConfig::with_config(config, global_id).handle_error()?;
 
     let mut executor = ton_executor::OrdinaryTransactionExecutor::new(config);
     executor.set_signature_check_disabled(disable_signature_check);
