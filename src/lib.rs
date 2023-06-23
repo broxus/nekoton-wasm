@@ -23,6 +23,7 @@ mod external;
 mod generic_contract;
 mod models;
 mod tokens_object;
+mod transactions_tree;
 mod transport;
 mod utils;
 

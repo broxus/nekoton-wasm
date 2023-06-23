@@ -49,7 +49,7 @@ ton_executor = { git = "https://github.com/broxus/ton-labs-executor.git" }
 [dependencies.nt]
 package = "nekoton"
 git = "https://github.com/broxus/nekoton.git"
-branch = "master"
+branch = "feat/local-executor"
 features = ["web", "gql_transport", "jrpc_transport"]
 
 [patch.crates-io]
