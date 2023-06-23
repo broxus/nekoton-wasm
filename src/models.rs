@@ -772,6 +772,9 @@ extern "C" {
     #[wasm_bindgen(typescript_type = "Promise<GenericContract>")]
     pub type PromiseGenericContract;
 
+    #[wasm_bindgen(typescript_type = "Promise<TransactionsTree>")]
+    pub type PromiseTransactionsTree;
+
     #[wasm_bindgen(typescript_type = "Promise<NetworkDescription>")]
     pub type PromiseNetworkDescription;
 

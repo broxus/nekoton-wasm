@@ -24,31 +24,31 @@ impl TransactionsTree {
     #[wasm_bindgen(js_name = "new")]
     pub fn new(
         clock: ClockWithOffset,
-        config: &str,
         message: &str,
-        global_id: Option<i32>,
         transport: Transport,
-    ) -> Result<TransactionsTree, JsValue> {
+    ) -> Result<PromiseTransactionsTree, JsValue> {
         let clock = Arc::new(clock);
-        let transport = transport.handle.into();
-
+        let transport: Arc<dyn nt::transport::Transport> = transport.handle.into();
         let message = ton_block::Message::construct_from_base64(message).handle_error()?;
 
-        let global_id = global_id.unwrap_or(42);
-        let config = ton_block::ConfigParams::construct_from_base64(config).handle_error()?;
-        let config =
-            ton_executor::BlockchainConfig::with_config(config, global_id).handle_error()?;
+        Ok(JsCast::unchecked_into(future_to_promise(async move {
+            let config = transport
+                .as_ref()
+                .get_blockchain_config(&*clock.clone_inner(), false)
+                .await
+                .handle_error()?;
 
-        let stream = Mutex::new(TransactionsTreeStream::new(
-            message,
-            config.clone(),
-            transport,
-            clock.clone_inner(),
-        ));
-        Ok(TransactionsTree {
-            clock,
-            inner: Arc::new(TransactionsTreeState { config, stream }),
-        })
+            let stream = Mutex::new(TransactionsTreeStream::new(
+                message,
+                config,
+                transport,
+                clock.clone_inner(),
+            ));
+            Ok(JsValue::from(TransactionsTree {
+                clock,
+                inner: Arc::new(TransactionsTreeState { stream }),
+            }))
+        })))
     }
 
     #[wasm_bindgen(js_name = "setAccountState")]
@@ -136,6 +136,5 @@ impl TransactionsTree {
 }
 
 pub struct TransactionsTreeState {
-    pub config: ton_executor::BlockchainConfig,
     pub stream: Mutex<TransactionsTreeStream>,
 }
