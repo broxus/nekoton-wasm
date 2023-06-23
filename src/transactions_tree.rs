@@ -21,11 +21,12 @@ pub struct TransactionsTree {
 
 #[wasm_bindgen]
 impl TransactionsTree {
-    #[wasm_bindgen(js_name = "new")]
-    pub fn new(
+    #[wasm_bindgen(js_name = "create")]
+    pub fn create(
         clock: ClockWithOffset,
         message: &str,
         transport: Transport,
+        use_empty_states: bool,
     ) -> Result<PromiseTransactionsTree, JsValue> {
         let clock = Arc::new(clock);
         let transport: Arc<dyn nt::transport::Transport> = transport.handle.into();
@@ -43,6 +44,7 @@ impl TransactionsTree {
                 config,
                 transport,
                 clock.clone_inner(),
+                use_empty_states,
             ));
             Ok(JsValue::from(TransactionsTree {
                 clock,
