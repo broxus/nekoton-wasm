@@ -2,15 +2,14 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use anyhow::Result;
-use nt::core::models::{NetworkCapabilities, ContractState};
+use nt::core::models::{NetworkCapabilities};
 use nt::transport::{Transport, TransportInfo};
 use nt::transport::models::{RawContractState, RawTransaction};
 use nt::utils::Clock;
+use serde_json;
 use ton_block::{Block, MsgAddressInt, Serializable};
 use wasm_bindgen::prelude::*;
-use serde_json;
 
-use crate::models::{OptionContractState};
 use crate::external::ILocalConnection;
 use crate::utils::*;
 
@@ -98,11 +97,11 @@ impl Transport for LocalTransport {
         todo!()
     }
 
-    async fn get_latest_key_block(&self) -> anyhow::Result<Block> {
+    async fn get_latest_key_block(&self) -> Result<Block> {
         todo!()
     }
 
-    async fn get_capabilities(&self, clock: &dyn Clock) -> anyhow::Result<NetworkCapabilities> { todo!() }
+    async fn get_capabilities(&self, clock: &dyn Clock) -> Result<NetworkCapabilities> { todo!() }
 
     async fn get_blockchain_config(
         &self,

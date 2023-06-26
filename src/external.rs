@@ -1,10 +1,8 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use nt::core::models::ContractState;
 use tokio::sync::oneshot;
 use wasm_bindgen::prelude::*;
-use crate::models::{AccountsList, OptionContractState};
 use crate::utils::StringArray;
 
 pub struct GqlConnectionImpl {
@@ -173,12 +171,12 @@ export interface ILocalTransport {
   sendMessage(message: string): void;
   getContractState(address: string): string | undefined;
   getAccountsByCodeHash(codeHash: string, limit: number, continuation?: string): string[];
-  getTransactions(address: string, fromLt: string, count: number): void;
-  getTransaction(): void;
-  getDstTransaction(): void;
-  getLatestKeyBlock(): void;
-  getCapabilities(): void;
-  getBlockchainConfig(): void;
+  getTransactions(address: string, fromLt: string, count: number): string[];
+  getTransaction(): string | undefined;
+  getDstTransaction(): string | undegined;
+  getLatestKeyBlock(): string;
+  getCapabilities(clock_offset_as_sec: string, clock_offset_as_ms: string): string[];
+  getBlockchainConfig(): string[];
 }
 "#;
 
@@ -202,22 +200,29 @@ extern "C" {
     ) -> StringArray;
 
     #[wasm_bindgen(method, js_name = "getTransactions")]
-    pub fn get_transactions(this: &ILocalConnection);
+    pub fn get_transactions(
+        this: &ILocalConnection,
+        address: &str,
+        from_lt: &str,
+        count: u8
+    ) -> StringArray;
 
     #[wasm_bindgen(method, js_name = "getTransaction")]
-    pub fn get_transaction(this: &ILocalConnection);
+    pub fn get_transaction(this: &ILocalConnection, id: &str) -> Option<String>;
 
     #[wasm_bindgen(method, js_name = "getDstTransaction")]
-    pub fn get_dst_transaction(this: &ILocalConnection);
+    pub fn get_dst_transaction(this: &ILocalConnection, message_hash: &str) -> Option<String>;
 
     #[wasm_bindgen(method, js_name = "getLatestKeyBlock")]
-    pub fn get_latest_key_block(this: &ILocalConnection);
+    pub fn get_latest_key_block(this: &ILocalConnection) -> String;
 
     #[wasm_bindgen(method, js_name = "getCapabilities")]
-    pub fn get_capabilities(this: &ILocalConnection);
+    pub fn get_capabilities(
+        this: &ILocalConnection, clock_offset_as_sec: &str, clock_offset_as_ms: &str
+    ) -> StringArray;
 
     #[wasm_bindgen(method, js_name = "getBlockchainConfig")]
-    pub fn get_blockchain_config(this: &ILocalConnection);
+    pub fn get_blockchain_config(this: &ILocalConnection) -> StringArray;
 }
 
 unsafe impl Send for ILocalConnection {}
