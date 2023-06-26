@@ -1,8 +1,11 @@
 use std::sync::Arc;
 
 use anyhow::Result;
+use nt::core::models::ContractState;
 use tokio::sync::oneshot;
 use wasm_bindgen::prelude::*;
+use crate::models::{AccountsList, OptionContractState};
+use crate::utils::StringArray;
 
 pub struct GqlConnectionImpl {
     sender: Arc<IGqlSender>,
@@ -162,3 +165,61 @@ impl nt::external::JrpcConnection for JrpcConnector {
         Ok(rx.await.unwrap_or(Err(JrpcError::RequestFailed))?)
     }
 }
+
+#[wasm_bindgen(typescript_custom_section)]
+const LOCAL_TRANSPORT: &str = r#"
+export interface ILocalTransport {
+  info(): void;
+  sendMessage(message: string): void;
+  getContractState(address: string): string | undefined;
+  getAccountsByCodeHash(codeHash: string, limit: number, continuation?: string): string[];
+  getTransactions(address: string, fromLt: string, count: number): void;
+  getTransaction(): void;
+  getDstTransaction(): void;
+  getLatestKeyBlock(): void;
+  getCapabilities(): void;
+  getBlockchainConfig(): void;
+}
+"#;
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(typescript_type = "ILocalTransport")]
+    pub type ILocalConnection;
+
+    #[wasm_bindgen(method)]
+    pub fn info(this: &ILocalConnection);
+
+    #[wasm_bindgen(method, js_name = "sendMessage")]
+    pub fn send_message(this: &ILocalConnection, message: &str);
+
+    #[wasm_bindgen(method, js_name = "getContractState")]
+    pub fn get_contract_state(this: &ILocalConnection, address: &str) -> Option<String>;
+
+    #[wasm_bindgen(method, js_name = "getAccountsByCodeHash")]
+    pub fn get_accounts_by_code_hash(
+        this: &ILocalConnection, code_hash: &str, limit: u8, continuation: Option<String>
+    ) -> StringArray;
+
+    #[wasm_bindgen(method, js_name = "getTransactions")]
+    pub fn get_transactions(this: &ILocalConnection);
+
+    #[wasm_bindgen(method, js_name = "getTransaction")]
+    pub fn get_transaction(this: &ILocalConnection);
+
+    #[wasm_bindgen(method, js_name = "getDstTransaction")]
+    pub fn get_dst_transaction(this: &ILocalConnection);
+
+    #[wasm_bindgen(method, js_name = "getLatestKeyBlock")]
+    pub fn get_latest_key_block(this: &ILocalConnection);
+
+    #[wasm_bindgen(method, js_name = "getCapabilities")]
+    pub fn get_capabilities(this: &ILocalConnection);
+
+    #[wasm_bindgen(method, js_name = "getBlockchainConfig")]
+    pub fn get_blockchain_config(this: &ILocalConnection);
+}
+
+unsafe impl Send for ILocalConnection {}
+unsafe impl Sync for ILocalConnection {}
+
