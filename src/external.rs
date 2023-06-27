@@ -173,7 +173,7 @@ export interface ILocalTransport {
   getAccountsByCodeHash(codeHash: string, limit: number, continuation?: string): string[];
   getTransactions(address: string, fromLt: string, count: number): string[];
   getTransaction(): string | undefined;
-  getDstTransaction(): string | undegined;
+  getDstTransaction(): string | undefined;
   getLatestKeyBlock(): string;
   getCapabilities(clock_offset_as_sec: string, clock_offset_as_ms: string): string[];
   getBlockchainConfig(): string[];
