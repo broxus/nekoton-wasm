@@ -51,13 +51,13 @@ impl Transport for LocalTransport {
     async fn send_message(&self, message: &ton_block::Message) -> Result<()> {
         Ok(self
             .connection
-            .send_message(&base64::encode(message.write_to_bytes().unwrap())))
+            .send_message(&base64::encode(message.write_to_bytes()?)))
     }
 
     async fn get_contract_state(&self, address: &MsgAddressInt) -> Result<RawContractState> {
         let str_state = self.connection.get_contract_state(&address.to_string());
         match str_state {
-            Some(state) => Ok(serde_json::from_str::<RawContractState>(&state).unwrap()),
+            Some(state) => Ok(serde_json::from_str::<RawContractState>(&state)?),
             None => Ok(RawContractState::NotExists),
         }
     }
@@ -75,7 +75,10 @@ impl Transport for LocalTransport {
         let arr: js_sys::Array = accs_list.unchecked_into();
         Ok(arr
             .iter()
-            .map(|addr| MsgAddressInt::from_str(&addr.as_string().unwrap()).unwrap())
+            .filter_map(|addr| {
+                addr.as_string()
+                    .and_then(|s| MsgAddressInt::from_str(&s).ok())
+            })
             .collect())
     }
 
@@ -91,13 +94,19 @@ impl Transport for LocalTransport {
         let arr: js_sys::Array = response.unchecked_into();
         Ok(arr
             .iter()
-            .map(|boc| decode_raw_transaction(&boc.as_string().unwrap()).unwrap())
+            .filter_map(|boc| {
+                boc.as_string()
+                    .and_then(|s| decode_raw_transaction(&s).ok())
+            })
             .collect())
     }
 
     async fn get_transaction(&self, id: &ton_types::UInt256) -> Result<Option<RawTransaction>> {
         let transaction = self.connection.get_transaction(&id.to_string());
-        Ok(transaction.map(|boc| decode_raw_transaction(&boc).unwrap()))
+        match transaction {
+            None => Ok(None),
+            Some(boc) => decode_raw_transaction(&boc).map(Some),
+        }
     }
 
     async fn get_dst_transaction(
@@ -107,12 +116,15 @@ impl Transport for LocalTransport {
         let transaction = self
             .connection
             .get_dst_transaction(&message_hash.to_string());
-        Ok(transaction.map(|boc| decode_raw_transaction(&boc).unwrap()))
+        match transaction {
+            None => Ok(None),
+            Some(boc) => decode_raw_transaction(&boc).map(Some),
+        }
     }
 
     async fn get_latest_key_block(&self) -> Result<Block> {
         let block_boc = self.connection.get_latest_key_block();
-        Ok(ton_block::Block::construct_from_base64(&block_boc).unwrap())
+        Ok(ton_block::Block::construct_from_base64(&block_boc)?)
     }
 
     async fn get_capabilities(&self, clock: &dyn Clock) -> Result<NetworkCapabilities> {
