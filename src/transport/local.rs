@@ -128,19 +128,36 @@ impl Transport for LocalTransport {
     }
 
     async fn get_capabilities(&self, clock: &dyn Clock) -> Result<NetworkCapabilities> {
-        let network = self.connection.get_capabilities(
+        let response = self.connection.get_capabilities(
             &clock.now_sec_u64().to_string(),
             &clock.now_ms_u64().to_string(),
         );
-        todo!()
+        let arr: js_sys::Array = response.unchecked_into();
+        let mut iter = arr.iter();
+        let global_id = i32::from_str(
+            &iter
+                .next()
+                .map(|v| v.as_string().unwrap_or_default())
+                .unwrap_or_default(),
+        )
+        .unwrap_or_default();
+        let raw = u64::from_str(
+            &iter
+                .next()
+                .map(|v| v.as_string().unwrap_or_default())
+                .unwrap_or_default(),
+        )
+        .unwrap_or_default();
+
+        Ok(NetworkCapabilities { global_id, raw })
     }
 
     async fn get_blockchain_config(
         &self,
-        clock: &dyn Clock,
-        force: bool,
+        _clock: &dyn Clock,
+        _force: bool,
     ) -> Result<ton_executor::BlockchainConfig> {
-        todo!()
+        Ok(ton_executor::BlockchainConfig::default())
     }
 }
 
