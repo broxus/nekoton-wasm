@@ -166,7 +166,7 @@ impl nt::external::JrpcConnection for JrpcConnector {
 
 #[wasm_bindgen(typescript_custom_section)]
 const LOCAL_TRANSPORT: &str = r#"
-export interface IProxyTransport {
+export interface IProxyConnection {
   info(): void;
   sendMessage(message: string): void;
   getContractState(address: string): string | undefined;
@@ -182,7 +182,7 @@ export interface IProxyTransport {
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(typescript_type = "IProxyTransport")]
+    #[wasm_bindgen(typescript_type = "IProxyConnection")]
     pub type IProxyConnection;
 
     #[wasm_bindgen(method)]
