@@ -10,40 +10,40 @@ use serde_json;
 use ton_block::{Block, Deserializable, MsgAddressInt, Serializable};
 use wasm_bindgen::prelude::*;
 
-use crate::external::ILocalConnection;
+use crate::external::IProxyConnection;
 use crate::utils::*;
 
 #[wasm_bindgen]
-pub struct LocalConnection {
+pub struct ProxyConnection {
     #[wasm_bindgen(skip)]
-    pub inner: Arc<ILocalConnection>,
+    pub inner: Arc<IProxyConnection>,
     #[wasm_bindgen(skip)]
     pub clock: Arc<nt::utils::ClockWithOffset>,
 }
 
 #[wasm_bindgen]
-impl LocalConnection {
+impl ProxyConnection {
     #[wasm_bindgen(constructor)]
-    pub fn new(clock: &ClockWithOffset, local_connection: ILocalConnection) -> Self {
+    pub fn new(clock: &ClockWithOffset, proxy_connection: IProxyConnection) -> Self {
         Self {
-            inner: Arc::new(local_connection),
+            inner: Arc::new(proxy_connection),
             clock: clock.clone_inner(),
         }
     }
 }
 
-pub struct LocalTransport {
-    connection: Arc<ILocalConnection>,
+pub struct ProxyTransport {
+    connection: Arc<IProxyConnection>,
 }
 
-impl LocalTransport {
-    pub fn new(connection: Arc<ILocalConnection>) -> Self {
+impl ProxyTransport {
+    pub fn new(connection: Arc<IProxyConnection>) -> Self {
         Self { connection }
     }
 }
 
 #[async_trait::async_trait]
-impl Transport for LocalTransport {
+impl Transport for ProxyTransport {
     fn info(&self) -> TransportInfo {
         todo!()
     }
