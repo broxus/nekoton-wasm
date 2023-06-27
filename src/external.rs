@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
+use crate::utils::StringArray;
 use anyhow::Result;
 use tokio::sync::oneshot;
 use wasm_bindgen::prelude::*;
-use crate::utils::StringArray;
 
 pub struct GqlConnectionImpl {
     sender: Arc<IGqlSender>,
@@ -196,7 +196,10 @@ extern "C" {
 
     #[wasm_bindgen(method, js_name = "getAccountsByCodeHash")]
     pub fn get_accounts_by_code_hash(
-        this: &ILocalConnection, code_hash: &str, limit: u8, continuation: Option<String>
+        this: &ILocalConnection,
+        code_hash: &str,
+        limit: u8,
+        continuation: Option<String>,
     ) -> StringArray;
 
     #[wasm_bindgen(method, js_name = "getTransactions")]
@@ -204,7 +207,7 @@ extern "C" {
         this: &ILocalConnection,
         address: &str,
         from_lt: &str,
-        count: u8
+        count: u8,
     ) -> StringArray;
 
     #[wasm_bindgen(method, js_name = "getTransaction")]
@@ -218,7 +221,9 @@ extern "C" {
 
     #[wasm_bindgen(method, js_name = "getCapabilities")]
     pub fn get_capabilities(
-        this: &ILocalConnection, clock_offset_as_sec: &str, clock_offset_as_ms: &str
+        this: &ILocalConnection,
+        clock_offset_as_sec: &str,
+        clock_offset_as_ms: &str,
     ) -> StringArray;
 
     #[wasm_bindgen(method, js_name = "getBlockchainConfig")]
@@ -227,4 +232,3 @@ extern "C" {
 
 unsafe impl Send for ILocalConnection {}
 unsafe impl Sync for ILocalConnection {}
-

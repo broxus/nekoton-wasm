@@ -2,12 +2,12 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use anyhow::Result;
-use nt::core::models::{NetworkCapabilities};
-use nt::transport::{Transport, TransportInfo};
+use nt::core::models::NetworkCapabilities;
 use nt::transport::models::{RawContractState, RawTransaction};
+use nt::transport::{Transport, TransportInfo};
 use nt::utils::Clock;
 use serde_json;
-use ton_block::{Block, MsgAddressInt, Serializable};
+use ton_block::{Block, Deserializable, MsgAddressInt, Serializable};
 use wasm_bindgen::prelude::*;
 
 use crate::external::ILocalConnection;
@@ -33,17 +33,14 @@ impl LocalConnection {
 }
 
 pub struct LocalTransport {
-    connection: Arc<ILocalConnection>
+    connection: Arc<ILocalConnection>,
 }
 
-impl LocalTransport{
+impl LocalTransport {
     pub fn new(connection: Arc<ILocalConnection>) -> Self {
-        Self {
-            connection
-        }
+        Self { connection }
     }
 }
-
 
 #[async_trait::async_trait]
 impl Transport for LocalTransport {
@@ -52,16 +49,16 @@ impl Transport for LocalTransport {
     }
 
     async fn send_message(&self, message: &ton_block::Message) -> Result<()> {
-        Ok(self.connection.send_message(&base64::encode(message.write_to_bytes().unwrap())))
+        Ok(self
+            .connection
+            .send_message(&base64::encode(message.write_to_bytes().unwrap())))
     }
 
     async fn get_contract_state(&self, address: &MsgAddressInt) -> Result<RawContractState> {
         let str_state = self.connection.get_contract_state(&address.to_string());
         match str_state {
-            Some(state) => {
-                Ok(serde_json::from_str::<RawContractState>(&state).unwrap())
-            },
-            None => Ok(RawContractState::NotExists)
+            Some(state) => Ok(serde_json::from_str::<RawContractState>(&state).unwrap()),
+            None => Ok(RawContractState::NotExists),
         }
     }
 
@@ -72,9 +69,14 @@ impl Transport for LocalTransport {
         continuation: &Option<MsgAddressInt>,
     ) -> Result<Vec<MsgAddressInt>> {
         let addr = continuation.as_ref().map(|addr| addr.to_string());
-        let accs_list: StringArray = self.connection.get_accounts_by_code_hash(&code_hash.to_string(), limit, addr);
+        let accs_list: StringArray =
+            self.connection
+                .get_accounts_by_code_hash(&code_hash.to_string(), limit, addr);
         let arr: js_sys::Array = accs_list.unchecked_into();
-        Ok(arr.iter().map(|addr| MsgAddressInt::from_str(&addr.as_string().unwrap()).unwrap()).collect())
+        Ok(arr
+            .iter()
+            .map(|addr| MsgAddressInt::from_str(&addr.as_string().unwrap()).unwrap())
+            .collect())
     }
 
     async fn get_transactions(
@@ -83,25 +85,43 @@ impl Transport for LocalTransport {
         from_lt: u64,
         count: u8,
     ) -> Result<Vec<RawTransaction>> {
-        todo!()
+        let response =
+            self.connection
+                .get_transactions(&address.to_string(), &from_lt.to_string(), count);
+        let arr: js_sys::Array = response.unchecked_into();
+        Ok(arr
+            .iter()
+            .map(|boc| decode_raw_transaction(&boc.as_string().unwrap()).unwrap())
+            .collect())
     }
 
     async fn get_transaction(&self, id: &ton_types::UInt256) -> Result<Option<RawTransaction>> {
-        todo!()
+        let transaction = self.connection.get_transaction(&id.to_string());
+        Ok(transaction.map(|boc| decode_raw_transaction(&boc).unwrap()))
     }
 
     async fn get_dst_transaction(
         &self,
         message_hash: &ton_types::UInt256,
     ) -> Result<Option<RawTransaction>> {
-        todo!()
+        let transaction = self
+            .connection
+            .get_dst_transaction(&message_hash.to_string());
+        Ok(transaction.map(|boc| decode_raw_transaction(&boc).unwrap()))
     }
 
     async fn get_latest_key_block(&self) -> Result<Block> {
-        todo!()
+        let block_boc = self.connection.get_latest_key_block();
+        Ok(ton_block::Block::construct_from_base64(&block_boc).unwrap())
     }
 
-    async fn get_capabilities(&self, clock: &dyn Clock) -> Result<NetworkCapabilities> { todo!() }
+    async fn get_capabilities(&self, clock: &dyn Clock) -> Result<NetworkCapabilities> {
+        let network = self.connection.get_capabilities(
+            &clock.now_sec_u64().to_string(),
+            &clock.now_ms_u64().to_string(),
+        );
+        todo!()
+    }
 
     async fn get_blockchain_config(
         &self,
@@ -112,6 +132,10 @@ impl Transport for LocalTransport {
     }
 }
 
-
-
-
+fn decode_raw_transaction(boc: &str) -> Result<RawTransaction> {
+    let bytes = base64::decode(boc)?;
+    let cell = ton_types::deserialize_tree_of_cells(&mut bytes.as_slice())?;
+    let hash = cell.repr_hash();
+    let data = ton_block::Transaction::construct_from_cell(cell)?;
+    Ok(RawTransaction { hash, data })
+}

@@ -17,7 +17,7 @@ pub mod local;
 pub enum TransportHandle {
     GraphQl(Arc<nt::transport::gql::GqlTransport>),
     Jrpc(Arc<nt::transport::jrpc::JrpcTransport>),
-    Local(Arc<local::LocalTransport>)
+    Local(Arc<local::LocalTransport>),
 }
 
 impl TransportHandle {
@@ -25,7 +25,7 @@ impl TransportHandle {
         match self {
             Self::GraphQl(transport) => transport.get_block(block_id).await.handle_error(),
             Self::Jrpc(_) => Err(TransportError::MethodNotSupported).handle_error(),
-            Self::Local(_) => Err(TransportError::MethodNotSupported).handle_error()
+            Self::Local(_) => Err(TransportError::MethodNotSupported).handle_error(),
         }
     }
 }
@@ -35,7 +35,7 @@ impl<'a> AsRef<dyn nt::transport::Transport + 'a> for TransportHandle {
         match self {
             Self::GraphQl(transport) => transport.as_ref(),
             Self::Jrpc(transport) => transport.as_ref(),
-            Self::Local(transport) => transport.as_ref()
+            Self::Local(transport) => transport.as_ref(),
         }
     }
 }
@@ -45,7 +45,7 @@ impl From<TransportHandle> for Arc<dyn nt::transport::Transport> {
         match handle {
             TransportHandle::GraphQl(transport) => transport,
             TransportHandle::Jrpc(transport) => transport,
-            TransportHandle::Local(transport) => transport
+            TransportHandle::Local(transport) => transport,
         }
     }
 }
