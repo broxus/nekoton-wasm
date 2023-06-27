@@ -166,7 +166,7 @@ impl nt::external::JrpcConnection for JrpcConnector {
 
 #[wasm_bindgen(typescript_custom_section)]
 const LOCAL_TRANSPORT: &str = r#"
-export interface IProxyConnection {
+export interface IProxyConnector {
   info(): void;
   sendMessage(message: string): void;
   getContractState(address: string): string | undefined;
@@ -182,21 +182,21 @@ export interface IProxyConnection {
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(typescript_type = "IProxyConnection")]
-    pub type IProxyConnection;
+    #[wasm_bindgen(typescript_type = "IProxyConnector")]
+    pub type IProxyConnector;
 
     #[wasm_bindgen(method)]
-    pub fn info(this: &IProxyConnection);
+    pub fn info(this: &IProxyConnector);
 
     #[wasm_bindgen(method, js_name = "sendMessage")]
-    pub fn send_message(this: &IProxyConnection, message: &str);
+    pub fn send_message(this: &IProxyConnector, message: &str);
 
     #[wasm_bindgen(method, js_name = "getContractState")]
-    pub fn get_contract_state(this: &IProxyConnection, address: &str) -> Option<String>;
+    pub fn get_contract_state(this: &IProxyConnector, address: &str) -> Option<String>;
 
     #[wasm_bindgen(method, js_name = "getAccountsByCodeHash")]
     pub fn get_accounts_by_code_hash(
-        this: &IProxyConnection,
+        this: &IProxyConnector,
         code_hash: &str,
         limit: u8,
         continuation: Option<String>,
@@ -204,31 +204,31 @@ extern "C" {
 
     #[wasm_bindgen(method, js_name = "getTransactions")]
     pub fn get_transactions(
-        this: &IProxyConnection,
+        this: &IProxyConnector,
         address: &str,
         from_lt: &str,
         count: u8,
     ) -> StringArray;
 
     #[wasm_bindgen(method, js_name = "getTransaction")]
-    pub fn get_transaction(this: &IProxyConnection, id: &str) -> Option<String>;
+    pub fn get_transaction(this: &IProxyConnector, id: &str) -> Option<String>;
 
     #[wasm_bindgen(method, js_name = "getDstTransaction")]
-    pub fn get_dst_transaction(this: &IProxyConnection, message_hash: &str) -> Option<String>;
+    pub fn get_dst_transaction(this: &IProxyConnector, message_hash: &str) -> Option<String>;
 
     #[wasm_bindgen(method, js_name = "getLatestKeyBlock")]
-    pub fn get_latest_key_block(this: &IProxyConnection) -> String;
+    pub fn get_latest_key_block(this: &IProxyConnector) -> String;
 
     #[wasm_bindgen(method, js_name = "getCapabilities")]
     pub fn get_capabilities(
-        this: &IProxyConnection,
+        this: &IProxyConnector,
         clock_offset_as_sec: &str,
         clock_offset_as_ms: &str,
     ) -> StringArray;
 
     #[wasm_bindgen(method, js_name = "getBlockchainConfig")]
-    pub fn get_blockchain_config(this: &IProxyConnection) -> StringArray;
+    pub fn get_blockchain_config(this: &IProxyConnector) -> StringArray;
 }
 
-unsafe impl Send for IProxyConnection {}
-unsafe impl Sync for IProxyConnection {}
+unsafe impl Send for IProxyConnector {}
+unsafe impl Sync for IProxyConnector {}

@@ -10,13 +10,13 @@ use serde_json;
 use ton_block::{Block, Deserializable, MsgAddressInt, Serializable};
 use wasm_bindgen::prelude::*;
 
-use crate::external::IProxyConnection;
+use crate::external::IProxyConnector;
 use crate::utils::*;
 
 #[wasm_bindgen]
 pub struct ProxyConnection {
     #[wasm_bindgen(skip)]
-    pub inner: Arc<IProxyConnection>,
+    pub inner: Arc<IProxyConnector>,
     #[wasm_bindgen(skip)]
     pub clock: Arc<nt::utils::ClockWithOffset>,
 }
@@ -24,20 +24,20 @@ pub struct ProxyConnection {
 #[wasm_bindgen]
 impl ProxyConnection {
     #[wasm_bindgen(constructor)]
-    pub fn new(clock: &ClockWithOffset, proxy_connection: IProxyConnection) -> Self {
+    pub fn new(clock: &ClockWithOffset, proxy_connector: IProxyConnector) -> Self {
         Self {
-            inner: Arc::new(proxy_connection),
+            inner: Arc::new(proxy_connector),
             clock: clock.clone_inner(),
         }
     }
 }
 
 pub struct ProxyTransport {
-    connection: Arc<IProxyConnection>,
+    connection: Arc<IProxyConnector>,
 }
 
 impl ProxyTransport {
-    pub fn new(connection: Arc<IProxyConnection>) -> Self {
+    pub fn new(connection: Arc<IProxyConnector>) -> Self {
         Self { connection }
     }
 }
