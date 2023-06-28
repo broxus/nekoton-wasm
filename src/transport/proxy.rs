@@ -71,7 +71,7 @@ impl Transport for ProxyTransport {
         let addr = continuation.as_ref().map(|addr| addr.to_string());
         let accs_list: StringArray =
             self.connection
-                .get_accounts_by_code_hash(&code_hash.to_string(), limit, addr);
+                .get_accounts_by_code_hash(&code_hash.to_hex_string(), limit, addr);
         let arr: js_sys::Array = accs_list.unchecked_into();
         Ok(arr
             .iter()
@@ -115,7 +115,7 @@ impl Transport for ProxyTransport {
     ) -> Result<Option<RawTransaction>> {
         let transaction = self
             .connection
-            .get_dst_transaction(&message_hash.to_string());
+            .get_dst_transaction(&message_hash.to_hex_string());
         match transaction {
             None => Ok(None),
             Some(boc) => decode_raw_transaction(&boc).map(Some),
