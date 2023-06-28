@@ -6,7 +6,6 @@ use nt::core::models::NetworkCapabilities;
 use nt::transport::models::{RawContractState, RawTransaction};
 use nt::transport::{Transport, TransportInfo};
 use nt::utils::Clock;
-use serde_json;
 use ton_block::{Block, Deserializable, MsgAddressInt, Serializable};
 use wasm_bindgen::prelude::*;
 
@@ -49,17 +48,14 @@ impl Transport for ProxyTransport {
     }
 
     async fn send_message(&self, message: &ton_block::Message) -> Result<()> {
-        Ok(self
-            .connection
-            .send_message(&base64::encode(message.write_to_bytes()?)))
+        self.connection
+            .send_message(&base64::encode(message.write_to_bytes()?));
+        Ok(())
     }
 
     async fn get_contract_state(&self, address: &MsgAddressInt) -> Result<RawContractState> {
-        let str_state = self.connection.get_contract_state(&address.to_string());
-        match str_state {
-            Some(state) => Ok(serde_json::from_str::<RawContractState>(&state)?),
-            None => Ok(RawContractState::NotExists),
-        }
+        let state = self.connection.get_contract_state(&address.to_string());
+        serde_wasm_bindgen::from_value(state).map_err(|e| anyhow::Error::msg(e.to_string()))
     }
 
     async fn get_accounts_by_code_hash(

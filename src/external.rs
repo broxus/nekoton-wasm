@@ -192,7 +192,7 @@ extern "C" {
     pub fn send_message(this: &IProxyConnector, message: &str);
 
     #[wasm_bindgen(method, js_name = "getContractState")]
-    pub fn get_contract_state(this: &IProxyConnector, address: &str) -> Option<String>;
+    pub fn get_contract_state(this: &IProxyConnector, address: &str) -> JsValue;
 
     #[wasm_bindgen(method, js_name = "getAccountsByCodeHash")]
     pub fn get_accounts_by_code_hash(

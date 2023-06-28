@@ -9,7 +9,7 @@ use std::sync::Arc;
 use ed25519_dalek::{Signer, Verifier};
 use nt::abi::FunctionExt;
 use nt::utils::Clock;
-use ton_block::{Deserializable, GetRepresentationHash, Serializable};
+use ton_block::{Account, Deserializable, GetRepresentationHash, Serializable};
 use ton_executor::TransactionExecutor;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::{JsCast, JsValue};
@@ -79,6 +79,32 @@ pub fn make_full_account_boc(account_stuff_boc: Option<String>) -> Result<String
         None => ton_block::Account::AccountNone,
     };
     serialize_into_boc(&account)
+}
+
+#[wasm_bindgen(js_name = "makeRawContractState")]
+pub fn make_raw_contract_state(account: &str) -> Result<JsValue, JsValue> {
+    let account = parse_cell(account)?;
+    let account = Account::construct_from_cell(account).handle_error()?;
+
+    let state = match account {
+        Account::AccountNone => nt::transport::models::RawContractState::NotExists,
+        Account::Account(account) => {
+            let timings = nt::abi::GenTimings::Unknown;
+            let last_transaction_id = nt::abi::LastTransactionId::Inexact {
+                latest_lt: account.storage.last_trans_lt,
+            };
+
+            nt::transport::models::RawContractState::Exists(
+                nt::transport::models::ExistingContract {
+                    account,
+                    timings,
+                    last_transaction_id,
+                },
+            )
+        }
+    };
+
+    serde_wasm_bindgen::to_value(&state).handle_error()
 }
 
 #[wasm_bindgen(js_name = "parseFullAccountBoc")]
