@@ -200,7 +200,7 @@ extern "C" {
         code_hash: &str,
         limit: u8,
         continuation: Option<String>,
-    ) -> StringArray;
+    ) -> JsValue;
 
     #[wasm_bindgen(method, js_name = "getTransactions")]
     pub fn get_transactions(
@@ -208,7 +208,7 @@ extern "C" {
         address: &str,
         from_lt: &str,
         count: u8,
-    ) -> StringArray;
+    ) -> JsValue;
 
     #[wasm_bindgen(method, js_name = "getTransaction")]
     pub fn get_transaction(this: &IProxyConnector, id: &str) -> Option<String>;

@@ -65,16 +65,14 @@ impl Transport for ProxyTransport {
         continuation: &Option<MsgAddressInt>,
     ) -> Result<Vec<MsgAddressInt>> {
         let addr = continuation.as_ref().map(|addr| addr.to_string());
-        let accs_list: StringArray =
+        let accs_list =
             self.connection
                 .get_accounts_by_code_hash(&code_hash.to_hex_string(), limit, addr);
-        let arr: js_sys::Array = accs_list.unchecked_into();
+        let arr: Vec<String> = serde_wasm_bindgen::from_value(accs_list)
+            .map_err(|e| anyhow::Error::msg(e.to_string()))?;
         Ok(arr
             .iter()
-            .filter_map(|addr| {
-                addr.as_string()
-                    .and_then(|s| MsgAddressInt::from_str(&s).ok())
-            })
+            .filter_map(|addr| MsgAddressInt::from_str(&addr).ok())
             .collect())
     }
 
@@ -87,13 +85,11 @@ impl Transport for ProxyTransport {
         let response =
             self.connection
                 .get_transactions(&address.to_string(), &from_lt.to_string(), count);
-        let arr: js_sys::Array = response.unchecked_into();
+        let arr: Vec<String> = serde_wasm_bindgen::from_value(response)
+            .map_err(|e| anyhow::Error::msg(e.to_string()))?;
         Ok(arr
             .iter()
-            .filter_map(|boc| {
-                boc.as_string()
-                    .and_then(|s| decode_raw_transaction(&s).ok())
-            })
+            .filter_map(|boc| decode_raw_transaction(&boc).ok())
             .collect())
     }
 

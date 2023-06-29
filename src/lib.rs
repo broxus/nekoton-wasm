@@ -146,7 +146,7 @@ pub fn execute_local(
     message: &str,
     utime: u32,
     disable_signature_check: bool,
-    overwrite_balance: Option<String>,  
+    overwrite_balance: Option<String>,
     global_id: Option<i32>,
 ) -> Result<TransactionExecutorOutput, JsValue> {
     let mut account = parse_cell(account)?;
