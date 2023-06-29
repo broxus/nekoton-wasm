@@ -108,10 +108,10 @@ pub fn make_raw_contract_state(account: &str) -> Result<JsValue, JsValue> {
 }
 
 #[wasm_bindgen(js_name = "parseMessageBase64")]
-pub fn parse_message_base64(message: &str) -> Result<Message, JsValue> {
+pub fn parse_message_base64(message: &str) -> Result<JsValue, JsValue> {
     let msg = ton_block::Message::construct_from_base64(message).unwrap();
     let nt_msg = nt::core::models::Message::from((msg.hash().unwrap(), msg));
-    Ok(make_message(&nt_msg).unchecked_into())
+    serde_wasm_bindgen::to_value(&nt_msg).handle_error()
 }
 
 #[wasm_bindgen(js_name = "parseFullAccountBoc")]
@@ -146,7 +146,7 @@ pub fn execute_local(
     message: &str,
     utime: u32,
     disable_signature_check: bool,
-    overwrite_balance: Option<String>,
+    overwrite_balance: Option<String>,  
     global_id: Option<i32>,
 ) -> Result<TransactionExecutorOutput, JsValue> {
     let mut account = parse_cell(account)?;
