@@ -96,8 +96,12 @@ impl Transport for ProxyTransport {
     async fn get_transaction(&self, id: &ton_types::UInt256) -> Result<Option<RawTransaction>> {
         let transaction = self.connection.get_transaction(&id.to_string());
         match transaction {
-            None => Ok(None),
-            Some(boc) => decode_raw_transaction(&boc).map(Some),
+            value if value == JsValue::NULL => Ok(None),
+            boc => {
+                let boc: String = serde_wasm_bindgen::from_value(boc)
+                    .map_err(|e| anyhow::Error::msg(e.to_string()))?;
+                decode_raw_transaction(&boc).map(Some)
+            }
         }
     }
 
@@ -109,14 +113,20 @@ impl Transport for ProxyTransport {
             .connection
             .get_dst_transaction(&message_hash.to_hex_string());
         match transaction {
-            None => Ok(None),
-            Some(boc) => decode_raw_transaction(&boc).map(Some),
+            value if value == JsValue::NULL => Ok(None),
+            boc => {
+                let boc: String = serde_wasm_bindgen::from_value(boc)
+                    .map_err(|e| anyhow::Error::msg(e.to_string()))?;
+                decode_raw_transaction(&boc).map(Some)
+            }
         }
     }
 
     async fn get_latest_key_block(&self) -> Result<Block> {
         let block_boc = self.connection.get_latest_key_block();
-        Ok(ton_block::Block::construct_from_base64(&block_boc)?)
+        let block: String = serde_wasm_bindgen::from_value(block_boc)
+            .map_err(|e| anyhow::Error::msg(e.to_string()))?;
+        Ok(ton_block::Block::construct_from_base64(&block)?)
     }
 
     async fn get_capabilities(&self, clock: &dyn Clock) -> Result<NetworkCapabilities> {
@@ -124,22 +134,12 @@ impl Transport for ProxyTransport {
             &clock.now_sec_u64().to_string(),
             &clock.now_ms_u64().to_string(),
         );
-        let arr: js_sys::Array = response.unchecked_into();
+        let arr: Vec<String> = serde_wasm_bindgen::from_value(response)
+            .map_err(|e| anyhow::Error::msg(e.to_string()))?;
         let mut iter = arr.iter();
-        let global_id = i32::from_str(
-            &iter
-                .next()
-                .map(|v| v.as_string().unwrap_or_default())
-                .unwrap_or_default(),
-        )
-        .unwrap_or_default();
-        let raw = u64::from_str(
-            &iter
-                .next()
-                .map(|v| v.as_string().unwrap_or_default())
-                .unwrap_or_default(),
-        )
-        .unwrap_or_default();
+        let global_id =
+            i32::from_str(&iter.next().cloned().unwrap_or_default()).unwrap_or_default();
+        let raw = u64::from_str(&iter.next().cloned().unwrap_or_default()).unwrap_or_default();
 
         Ok(NetworkCapabilities { global_id, raw })
     }

@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use crate::utils::StringArray;
 use anyhow::Result;
 use tokio::sync::oneshot;
 use wasm_bindgen::prelude::*;
@@ -211,23 +210,23 @@ extern "C" {
     ) -> JsValue;
 
     #[wasm_bindgen(method, js_name = "getTransaction")]
-    pub fn get_transaction(this: &IProxyConnector, id: &str) -> Option<String>;
+    pub fn get_transaction(this: &IProxyConnector, id: &str) -> JsValue;
 
     #[wasm_bindgen(method, js_name = "getDstTransaction")]
-    pub fn get_dst_transaction(this: &IProxyConnector, message_hash: &str) -> Option<String>;
+    pub fn get_dst_transaction(this: &IProxyConnector, message_hash: &str) -> JsValue;
 
     #[wasm_bindgen(method, js_name = "getLatestKeyBlock")]
-    pub fn get_latest_key_block(this: &IProxyConnector) -> String;
+    pub fn get_latest_key_block(this: &IProxyConnector) -> JsValue;
 
     #[wasm_bindgen(method, js_name = "getCapabilities")]
     pub fn get_capabilities(
         this: &IProxyConnector,
         clock_offset_as_sec: &str,
         clock_offset_as_ms: &str,
-    ) -> StringArray;
+    ) -> JsValue;
 
     #[wasm_bindgen(method, js_name = "getBlockchainConfig")]
-    pub fn get_blockchain_config(this: &IProxyConnector) -> StringArray;
+    pub fn get_blockchain_config(this: &IProxyConnector) -> JsValue;
 }
 
 unsafe impl Send for IProxyConnector {}
