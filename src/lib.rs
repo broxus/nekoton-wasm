@@ -107,6 +107,13 @@ pub fn make_raw_contract_state(account: &str) -> Result<JsValue, JsValue> {
     serde_wasm_bindgen::to_value(&state).handle_error()
 }
 
+#[wasm_bindgen(js_name = "parseMessageBase64")]
+pub fn parse_message_base64(message: &str) -> Result<Message, JsValue> {
+    let msg = ton_block::Message::construct_from_base64(message).unwrap();
+    let nt_msg = nt::core::models::Message::from((msg.hash().unwrap(), msg));
+    Ok(make_message(&nt_msg).unchecked_into())
+}
+
 #[wasm_bindgen(js_name = "parseFullAccountBoc")]
 pub fn parse_full_account_boc(account: &str) -> Result<OptionFullContractState, JsValue> {
     let account = parse_cell(account)?;
