@@ -44,7 +44,8 @@ impl ProxyTransport {
 #[async_trait::async_trait]
 impl Transport for ProxyTransport {
     fn info(&self) -> TransportInfo {
-        todo!()
+        let info = self.connection.info();
+        serde_wasm_bindgen::from_value(info).map_err(|e| anyhow::Error::msg(e.to_string())).unwrap()
     }
 
     async fn send_message(&self, message: &ton_block::Message) -> Result<()> {
