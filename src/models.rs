@@ -54,6 +54,7 @@ export type Message = {
     bounced: boolean,
     body?: string,
     bodyHash?: string,
+    boc: string
 };
 
 export type PendingTransaction = {
@@ -84,6 +85,7 @@ export type Transaction = {
     totalFees: string,
     inMessage: Message,
     outMessages: Message[],
+    boc: string
 };
 
 export type TransactionsBatchType = 'old' | 'new';
@@ -292,6 +294,7 @@ pub fn make_message(data: &models::Message) -> JsValue {
         .set("bounced", data.bounced)
         .set("body", body)
         .set("bodyHash", body_hash)
+        .set("boc", data.boc.to_string())
         .build()
         .unchecked_into()
 }
@@ -408,6 +411,7 @@ pub fn make_transaction_ext(
         .set("totalFees", data.total_fees.to_string())
         .set("inMessage", in_msg)
         .set("outMessages", out_msgs)
+        .set("boc", data.boc)
         .build()
         .unchecked_into()
 }
