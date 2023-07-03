@@ -26,6 +26,7 @@ mod tokens_object;
 mod transport;
 mod utils;
 
+
 #[wasm_bindgen(js_name = "checkAddress")]
 pub fn check_address(address: &str) -> bool {
     nt::utils::validate_address(address)
@@ -81,31 +82,6 @@ pub fn make_full_account_boc(account_stuff_boc: Option<String>) -> Result<String
     serialize_into_boc(&account)
 }
 
-#[wasm_bindgen(js_name = "makeRawContractState")]
-pub fn make_raw_contract_state(account: &str) -> Result<JsValue, JsValue> {
-    let account = parse_cell(account)?;
-    let account = Account::construct_from_cell(account).handle_error()?;
-
-    let state = match account {
-        Account::AccountNone => nt::transport::models::RawContractState::NotExists,
-        Account::Account(account) => {
-            let timings = nt::abi::GenTimings::Unknown;
-            let last_transaction_id = nt::abi::LastTransactionId::Inexact {
-                latest_lt: account.storage.last_trans_lt,
-            };
-
-            nt::transport::models::RawContractState::Exists(
-                nt::transport::models::ExistingContract {
-                    account,
-                    timings,
-                    last_transaction_id,
-                },
-            )
-        }
-    };
-
-    serde_wasm_bindgen::to_value(&state).handle_error()
-}
 
 #[wasm_bindgen(js_name = "parseMessageBase64")]
 pub fn parse_message_base64(message: &str) -> Result<Message, JsValue> {

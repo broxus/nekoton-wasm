@@ -164,7 +164,7 @@ impl nt::external::JrpcConnection for JrpcConnector {
 }
 
 #[wasm_bindgen(typescript_custom_section)]
-const LOCAL_TRANSPORT: &str = r#"
+const PROXY_TRANSPORT: &str = r#"
 export interface IProxyConnector {
   info(): TransportInfo;
   sendMessage(message: string): void;
