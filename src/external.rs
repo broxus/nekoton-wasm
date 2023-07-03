@@ -166,16 +166,16 @@ impl nt::external::JrpcConnection for JrpcConnector {
 #[wasm_bindgen(typescript_custom_section)]
 const LOCAL_TRANSPORT: &str = r#"
 export interface IProxyConnector {
-  info(): string;
+  info(): TransportInfo;
   sendMessage(message: string): void;
-  getContractState(address: string): string | undefined;
+  getContractState(address: string): RawContractState | undefined;
   getAccountsByCodeHash(codeHash: string, limit: number, continuation?: string): string[];
   getTransactions(address: string, fromLt: string, count: number): string[];
   getTransaction(id: string): string | undefined;
   getDstTransaction(msg_hash: string): string | undefined;
   getLatestKeyBlock(): string;
   getCapabilities(clock_offset_as_sec: string, clock_offset_as_ms: string): string[];
-  getBlockchainConfig(): string[];
+  getBlockchainConfig(): string;
 }
 "#;
 

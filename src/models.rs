@@ -54,7 +54,7 @@ export type Message = {
     bounced: boolean,
     body?: string,
     bodyHash?: string,
-    boc: string
+    boc: string,
 };
 
 export type PendingTransaction = {
@@ -94,6 +94,14 @@ export type TransactionsBatchInfo = {
     minLt: string,
     maxLt: string,
     batchType: TransactionsBatchType,
+};
+
+export type ReliableBehaviorType = 'BlockWalking' | 'IntensivePolling';
+
+export type TransportInfo = {
+    max_transactions_per_fetch: number;
+    reliable_behavior: ReliableBehaviorType;
+    has_key_blocks: boolean;
 };
 
 export type StateInit = {
@@ -193,6 +201,13 @@ export type FullContractState = {
     isDeployed: boolean;
     codeHash?: string;
     boc: string;
+};
+
+export type RawContractState = {
+    account: string;
+    lastTransactionId: LastTransactionId;
+    timings: GenTimings;
+    type: string;
 };
 
 export type TransactionTree = {
@@ -665,6 +680,9 @@ extern "C" {
     #[wasm_bindgen(typescript_type = "TransactionId")]
     pub type TransactionId;
 
+    #[wasm_bindgen(typescript_type = "TransportInfo")]
+    pub type TransportInfo;
+
     #[wasm_bindgen(typescript_type = "GenTimings")]
     pub type GenTimings;
 
@@ -673,6 +691,9 @@ extern "C" {
 
     #[wasm_bindgen(typescript_type = "ContractState")]
     pub type ContractState;
+
+    #[wasm_bindgen(typescript_type = "RawContractState")]
+    pub type RawContractState;
 
     #[wasm_bindgen(typescript_type = "AccountStatus")]
     pub type AccountStatus;
