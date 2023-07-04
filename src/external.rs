@@ -175,7 +175,7 @@ export interface IProxyConnector {
   getDstTransaction(msg_hash: string): string | undefined;
   getLatestKeyBlock(): string;
   getCapabilities(clock_offset_as_sec: string, clock_offset_as_ms: string): string[];
-  getBlockchainConfig(): string;
+  getBlockchainConfig(): string[];
 }
 "#;
 
