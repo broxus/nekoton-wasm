@@ -325,36 +325,46 @@ pub fn make_raw_message(data: &ton_block::Message) -> JsValue {
     });
 
     let hash = data.hash().unwrap_or_default();
+    let msg_type;
     let message = match data.header() {
-        ton_block::CommonMsgInfo::IntMsgInfo(header) => models::Message {
-            hash,
-            src: match &header.src {
-                ton_block::MsgAddressIntOrNone::Some(addr) => Some(addr.clone()),
-                ton_block::MsgAddressIntOrNone::None => None,
-            },
-            dst: Some(header.dst.clone()),
-            value: header.value.grams.as_u128() as u64,
-            body,
-            bounce: header.bounce,
-            bounced: header.bounced,
-            ..Default::default()
-        },
-        ton_block::CommonMsgInfo::ExtInMsgInfo(header) => models::Message {
-            hash,
-            src: None,
-            dst: Some(header.dst.clone()),
-            body,
-            ..Default::default()
-        },
-        ton_block::CommonMsgInfo::ExtOutMsgInfo(header) => models::Message {
-            hash,
-            src: match &header.src {
-                ton_block::MsgAddressIntOrNone::Some(addr) => Some(addr.clone()),
-                ton_block::MsgAddressIntOrNone::None => None,
-            },
-            body,
-            ..Default::default()
-        },
+        ton_block::CommonMsgInfo::IntMsgInfo(header) => {
+            msg_type = "IntMsg";
+            models::Message {
+                hash,
+                src: match &header.src {
+                    ton_block::MsgAddressIntOrNone::Some(addr) => Some(addr.clone()),
+                    ton_block::MsgAddressIntOrNone::None => None,
+                },
+                dst: Some(header.dst.clone()),
+                value: header.value.grams.as_u128() as u64,
+                body,
+                bounce: header.bounce,
+                bounced: header.bounced,
+                ..Default::default()
+            }
+        }
+        ton_block::CommonMsgInfo::ExtInMsgInfo(header) => {
+            msg_type = "ExtIn";
+            models::Message {
+                hash,
+                src: None,
+                dst: Some(header.dst.clone()),
+                body,
+                ..Default::default()
+            }
+        }
+        ton_block::CommonMsgInfo::ExtOutMsgInfo(header) => {
+            msg_type = "ExtOut";
+            models::Message {
+                hash,
+                src: match &header.src {
+                    ton_block::MsgAddressIntOrNone::Some(addr) => Some(addr.clone()),
+                    ton_block::MsgAddressIntOrNone::None => None,
+                },
+                body,
+                ..Default::default()
+            }
+        }
     };
 
     let (body, body_hash) = if let Some(body) = &message.body {
@@ -367,7 +377,10 @@ pub fn make_raw_message(data: &ton_block::Message) -> JsValue {
     };
 
     let init = if let Some(init) = data.state_init() {
-        let state_init_code_hash = init.code.as_ref().map(|code| code.repr_hash().to_string());
+        let state_init_code_hash = init
+            .code
+            .as_ref()
+            .map(|code| code.repr_hash().to_hex_string());
         Some(
             ObjectBuilder::new()
                 .set("code_hash", state_init_code_hash)
@@ -388,6 +401,7 @@ pub fn make_raw_message(data: &ton_block::Message) -> JsValue {
         .set("bodyHash", body_hash)
         .set("boc", message.boc.to_string())
         .set("init", init)
+        .set("msg_type", msg_type)
         .build()
         .unchecked_into()
 }
@@ -505,7 +519,7 @@ pub fn make_raw_transaction(raw_transaction: nt::transport::models::RawTransacti
             hex::encode(data.prev_trans_hash.as_slice()),
         )
         .set("now", data.now)
-        .set("accountAddr", data.account_addr.to_string())
+        .set("accountAddr", data.account_addr.as_hex_string())
         .set("description", desc)
         .set("origStatus", make_account_status(data.orig_status.into()))
         .set("endStatus", make_account_status(data.end_status.into()))

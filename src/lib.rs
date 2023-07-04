@@ -10,7 +10,7 @@ use ed25519_dalek::{Signer, Verifier};
 use nt::abi::FunctionExt;
 use nt::transport::models::RawTransaction;
 use nt::utils::Clock;
-use ton_block::{Account, Deserializable, GetRepresentationHash, Serializable};
+use ton_block::{Deserializable, GetRepresentationHash, Serializable};
 use ton_executor::TransactionExecutor;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::{JsCast, JsValue};
