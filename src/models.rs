@@ -370,7 +370,7 @@ pub fn make_raw_message(data: &ton_block::Message) -> JsValue {
         let state_init_code_hash = init.code.as_ref().map(|code| code.repr_hash().to_string());
         Some(
             ObjectBuilder::new()
-                .set("hash", state_init_code_hash)
+                .set("code_hash", state_init_code_hash)
                 .build(),
         )
     } else {

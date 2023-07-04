@@ -733,7 +733,7 @@ pub fn unpack_tree(boc: &str) -> Result<JsTransactionTree, JsValue> {
     Ok(make_transaction_tree(tree))
 }
 
-#[wasm_bindgen(js_name = "unpackTransactionTree")]
+#[wasm_bindgen(js_name = "decodeRawTransaction")]
 pub fn decode_raw_transaction(boc: &str) -> Result<JsValue, JsValue> {
     let bytes = base64::decode(boc).handle_error()?;
     let cell = ton_types::deserialize_tree_of_cells(&mut bytes.as_slice()).handle_error()?;
