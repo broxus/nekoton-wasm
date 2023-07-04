@@ -499,13 +499,13 @@ pub fn make_raw_transaction(raw_transaction: nt::transport::models::RawTransacti
     ObjectBuilder::new()
         .set("lt", data.lt)
         .set("hash", hex::encode(hash.as_slice()))
-        .set("prev_trans_lt", data.prev_trans_lt)
+        .set("prevTransLt", data.prev_trans_lt)
         .set(
-            "prev_trans_hash",
+            "prevTransHash",
             hex::encode(data.prev_trans_hash.as_slice()),
         )
         .set("now", data.now)
-        .set("account_addr", data.account_addr.to_string())
+        .set("accountAddr", data.account_addr.to_string())
         .set("description", desc)
         .set("origStatus", make_account_status(data.orig_status.into()))
         .set("endStatus", make_account_status(data.end_status.into()))
@@ -520,8 +520,17 @@ pub fn make_raw_description(desc: ton_block::TransactionDescrOrdinary) -> JsValu
     let compute_ph = match &desc.compute_ph {
         ton_block::TrComputePhase::Vm(vm) => ObjectBuilder::new()
             .set("status", "vm")
-            .set("exitCode", vm.exit_code)
             .set("success", vm.success)
+            .set("exitCode", vm.exit_code)
+            .set("msgStateUsed", vm.msg_state_used)
+            .set("accountActivated", vm.account_activated)
+            .set("gasFees", vm.gas_fees.as_u128().to_string())
+            .set("gasUsed", vm.gas_used.to_string())
+            .set("gasLimit", vm.gas_used.to_string())
+            .set("gasCredit", vm.gas_credit.unwrap_or_default().to_string())
+            .set("mode", vm.mode)
+            .set("exitArg", vm.exit_arg)
+            .set("vmSteps", vm.vm_steps)
             .build(),
         ton_block::TrComputePhase::Skipped(s) => ObjectBuilder::new()
             .set("status", "skipped")
@@ -532,15 +541,15 @@ pub fn make_raw_description(desc: ton_block::TransactionDescrOrdinary) -> JsValu
     let aborted = desc.aborted;
     let bounce = if let Some(b) = desc.bounce {
         Some(match b {
-            TrBouncePhase::Negfunds => ObjectBuilder::new().set("status", "neg_funds").build(),
+            TrBouncePhase::Negfunds => ObjectBuilder::new().set("status", "negFunds").build(),
             TrBouncePhase::Nofunds(f) => ObjectBuilder::new()
-                .set("status", "no_funds")
-                .set("req_fwd_fees", f.req_fwd_fees.as_u128().to_string())
+                .set("status", "noFunds")
+                .set("reqFwdFees", f.req_fwd_fees.as_u128().to_string())
                 .build(),
             TrBouncePhase::Ok(f) => ObjectBuilder::new()
                 .set("status", "ok")
-                .set("msg_fees", f.msg_fees.as_u128().to_string())
-                .set("req_fwd_fees", f.fwd_fees.as_u128().to_string())
+                .set("msgFees", f.msg_fees.as_u128().to_string())
+                .set("fwdFees", f.fwd_fees.as_u128().to_string())
                 .build(),
         })
     } else {
@@ -549,10 +558,12 @@ pub fn make_raw_description(desc: ton_block::TransactionDescrOrdinary) -> JsValu
     let storage = if let Some(b) = desc.storage_ph {
         Some(
             ObjectBuilder::new()
+                .set("storageFeesCollected", b.storage_fees_collected.to_string())
                 .set(
-                    "storage_fees_collected",
-                    b.storage_fees_collected.to_string(),
+                    "storageFeesDue",
+                    b.storage_fees_due.map(|v| v.as_u128().to_string()),
                 )
+                .set("statusChange", format!("{:#?}", b.status_change))
                 .build(),
         )
     } else {
@@ -561,39 +572,39 @@ pub fn make_raw_description(desc: ton_block::TransactionDescrOrdinary) -> JsValu
     let action = if let Some(b) = desc.action {
         Some(
             ObjectBuilder::new()
-                .set("result_code", b.result_code)
+                .set("resultCode", b.result_code)
                 .set("success", b.success)
                 .set("valid", b.valid)
-                .set("no_funds", b.no_funds)
+                .set("noFunds", b.no_funds)
                 .set(
-                    "total_fwd_fees",
+                    "totalFwdFees",
                     b.total_fwd_fees.unwrap_or_default().as_u128().to_string(),
                 )
                 .set(
-                    "total_action_fees",
+                    "totalActionFees",
                     b.total_action_fees
                         .unwrap_or_default()
                         .as_u128()
                         .to_string(),
                 )
-                .set("result_arg", b.result_arg)
-                .set("tot_actions", b.tot_actions)
-                .set("spec_actions", b.spec_actions)
-                .set("skipped_actions", b.skipped_actions)
-                .set("msgs_created", b.msgs_created)
+                .set("resultArg", b.result_arg)
+                .set("totActions", b.tot_actions)
+                .set("specActions", b.spec_actions)
+                .set("skippedActions", b.skipped_actions)
+                .set("msgsCreated", b.msgs_created)
                 .build(),
         )
     } else {
         None
     };
     ObjectBuilder::new()
-        .set("compute_ph", compute_ph)
+        .set("computePh", compute_ph)
         .set("aborted", aborted)
         .set("destroyed", desc.destroyed)
         .set("bounce", bounce)
         .set("storage", storage)
         .set("action", action)
-        .set("credit_first", desc.credit_first)
+        .set("creditFirst", desc.credit_first)
         .build()
         .unchecked_into()
 }
