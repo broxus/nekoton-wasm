@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 use ed25519_dalek::{Signer, Verifier};
 use nt::abi::FunctionExt;
+use nt::transport::models::RawTransaction;
 use nt::utils::Clock;
 use ton_block::{Account, Deserializable, GetRepresentationHash, Serializable};
 use ton_executor::TransactionExecutor;
@@ -25,7 +26,6 @@ mod models;
 mod tokens_object;
 mod transport;
 mod utils;
-
 
 #[wasm_bindgen(js_name = "checkAddress")]
 pub fn check_address(address: &str) -> bool {
@@ -82,12 +82,14 @@ pub fn make_full_account_boc(account_stuff_boc: Option<String>) -> Result<String
     serialize_into_boc(&account)
 }
 
-
 #[wasm_bindgen(js_name = "parseMessageBase64")]
 pub fn parse_message_base64(message: &str) -> Result<Message, JsValue> {
     let msg = ton_block::Message::construct_from_base64(message).handle_error()?;
-    let nt_msg = nt::core::models::Message::try_from((msg.hash().handle_error()?, msg)).handle_error()?;
-    serde_wasm_bindgen::to_value(&nt_msg).handle_error().map(JsValue::unchecked_into)
+    let nt_msg =
+        nt::core::models::Message::try_from((msg.hash().handle_error()?, msg)).handle_error()?;
+    serde_wasm_bindgen::to_value(&nt_msg)
+        .handle_error()
+        .map(JsValue::unchecked_into)
 }
 
 #[wasm_bindgen(js_name = "parseFullAccountBoc")]
@@ -729,6 +731,15 @@ pub fn unpack_tree(boc: &str) -> Result<JsTransactionTree, JsValue> {
         .handle_error()?;
     let tree = TransactionTree::unpack(slice).handle_error()?;
     Ok(make_transaction_tree(tree))
+}
+
+#[wasm_bindgen(js_name = "unpackTransactionTree")]
+pub fn decode_raw_transaction(boc: &str) -> Result<JsValue, JsValue> {
+    let bytes = base64::decode(boc).handle_error()?;
+    let cell = ton_types::deserialize_tree_of_cells(&mut bytes.as_slice()).handle_error()?;
+    let hash = cell.repr_hash();
+    let data = ton_block::Transaction::construct_from_cell(cell).handle_error()?;
+    Ok(make_raw_transaction(RawTransaction { hash, data }))
 }
 
 pub struct TransactionTree {

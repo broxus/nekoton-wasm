@@ -2,7 +2,8 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use nt::core::models;
-use ton_block::{Deserializable, Serializable};
+use nt::core::models::MessageBody;
+use ton_block::{Deserializable, GetRepresentationHash, Serializable, TrBouncePhase};
 use ton_types::UInt256;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -314,6 +315,83 @@ pub fn make_message(data: &models::Message) -> JsValue {
         .unchecked_into()
 }
 
+pub fn make_raw_message(data: &ton_block::Message) -> JsValue {
+    let body = data.body().map(|body| {
+        let data = body.into_cell();
+        MessageBody {
+            hash: data.repr_hash(),
+            data,
+        }
+    });
+
+    let hash = data.hash().unwrap_or_default();
+    let message = match data.header() {
+        ton_block::CommonMsgInfo::IntMsgInfo(header) => models::Message {
+            hash,
+            src: match &header.src {
+                ton_block::MsgAddressIntOrNone::Some(addr) => Some(addr.clone()),
+                ton_block::MsgAddressIntOrNone::None => None,
+            },
+            dst: Some(header.dst.clone()),
+            value: header.value.grams.as_u128() as u64,
+            body,
+            bounce: header.bounce,
+            bounced: header.bounced,
+            ..Default::default()
+        },
+        ton_block::CommonMsgInfo::ExtInMsgInfo(header) => models::Message {
+            hash,
+            src: None,
+            dst: Some(header.dst.clone()),
+            body,
+            ..Default::default()
+        },
+        ton_block::CommonMsgInfo::ExtOutMsgInfo(header) => models::Message {
+            hash,
+            src: match &header.src {
+                ton_block::MsgAddressIntOrNone::Some(addr) => Some(addr.clone()),
+                ton_block::MsgAddressIntOrNone::None => None,
+            },
+            body,
+            ..Default::default()
+        },
+    };
+
+    let (body, body_hash) = if let Some(body) = &message.body {
+        (
+            Some(make_boc(&body.data).expect("Shouldn't fail")),
+            Some(body.hash.to_hex_string()),
+        )
+    } else {
+        (None, None)
+    };
+
+    let init = if let Some(init) = data.state_init() {
+        let state_init_code_hash = init.code.as_ref().map(|code| code.repr_hash().to_string());
+        Some(
+            ObjectBuilder::new()
+                .set("hash", state_init_code_hash)
+                .build(),
+        )
+    } else {
+        None
+    };
+
+    ObjectBuilder::new()
+        .set("hash", message.hash.to_hex_string())
+        .set("src", message.src.as_ref().map(ToString::to_string))
+        .set("dst", message.dst.as_ref().map(ToString::to_string))
+        .set("value", message.value.to_string())
+        .set("bounce", message.bounce)
+        .set("bounced", message.bounced)
+        .set("body", body)
+        .set("bodyHash", body_hash)
+        .set("boc", message.boc.to_string())
+        .set("init", init)
+        .build()
+        .unchecked_into()
+}
+
 pub fn make_pending_transaction(data: models::PendingTransaction) -> PendingTransaction {
     ObjectBuilder::new()
         .set("messageHash", data.message_hash.to_hex_string())
@@ -378,6 +456,144 @@ pub fn make_transactions_list(
         )
         .set("continuation", continuation.map(make_transaction_id))
         .set("info", batch_info.map(make_transactions_batch_info))
+        .build()
+        .unchecked_into()
+}
+
+pub fn make_raw_transaction(raw_transaction: nt::transport::models::RawTransaction) -> JsValue {
+    let nt::transport::models::RawTransaction { hash, data } = raw_transaction;
+    let in_msg = {
+        if let Some(msg) = &data.in_msg.and_then(|in_msg| in_msg.read_struct().ok()) {
+            Some(make_raw_message(msg))
+        } else {
+            None
+        }
+    };
+
+    let mut out_messages = vec![];
+    data.out_msgs
+        .iterate_slices(|slice| {
+            if let Ok(message) = slice
+                .reference(0)
+                .and_then(ton_block::Message::construct_from_cell)
+            {
+                out_messages.push(message);
+            }
+            Ok(true)
+        })
+        .unwrap();
+
+    let out_msgs = out_messages
+        .into_iter()
+        .map(|msg| make_raw_message(&msg))
+        .collect::<js_sys::Array>();
+
+    let desc = if let Some(ton_block::TransactionDescr::Ordinary(desc)) =
+        data.description.read_struct().ok()
+    {
+        Some(make_raw_description(desc))
+    } else {
+        None
+    };
+
+    ObjectBuilder::new()
+        .set("lt", data.lt)
+        .set("hash", hex::encode(hash.as_slice()))
+        .set("prev_trans_lt", data.prev_trans_lt)
+        .set(
+            "prev_trans_hash",
+            hex::encode(data.prev_trans_hash.as_slice()),
+        )
+        .set("now", data.now)
+        .set("account_addr", data.account_addr.to_string())
+        .set("description", desc)
+        .set("origStatus", make_account_status(data.orig_status.into()))
+        .set("endStatus", make_account_status(data.end_status.into()))
+        .set("totalFees", data.total_fees.grams.as_u128().to_string())
+        .set("inMessage", in_msg)
+        .set("outMessages", out_msgs)
+        .build()
+        .unchecked_into()
+}
+
+pub fn make_raw_description(desc: ton_block::TransactionDescrOrdinary) -> JsValue {
+    let compute_ph = match &desc.compute_ph {
+        ton_block::TrComputePhase::Vm(vm) => ObjectBuilder::new()
+            .set("status", "vm")
+            .set("exitCode", vm.exit_code)
+            .set("success", vm.success)
+            .build(),
+        ton_block::TrComputePhase::Skipped(s) => ObjectBuilder::new()
+            .set("status", "skipped")
+            .set("reason", format!("{:#?}", s.reason))
+            .build(),
+    };
+
+    let aborted = desc.aborted;
+    let bounce = if let Some(b) = desc.bounce {
+        Some(match b {
+            TrBouncePhase::Negfunds => ObjectBuilder::new().set("status", "neg_funds").build(),
+            TrBouncePhase::Nofunds(f) => ObjectBuilder::new()
+                .set("status", "no_funds")
+                .set("req_fwd_fees", f.req_fwd_fees.as_u128().to_string())
+                .build(),
+            TrBouncePhase::Ok(f) => ObjectBuilder::new()
+                .set("status", "ok")
+                .set("msg_fees", f.msg_fees.as_u128().to_string())
+                .set("req_fwd_fees", f.fwd_fees.as_u128().to_string())
+                .build(),
+        })
+    } else {
+        None
+    };
+    let storage = if let Some(b) = desc.storage_ph {
+        Some(
+            ObjectBuilder::new()
+                .set(
+                    "storage_fees_collected",
+                    b.storage_fees_collected.to_string(),
+                )
+                .build(),
+        )
+    } else {
+        None
+    };
+    let action = if let Some(b) = desc.action {
+        Some(
+            ObjectBuilder::new()
+                .set("result_code", b.result_code)
+                .set("success", b.success)
+                .set("valid", b.valid)
+                .set("no_funds", b.no_funds)
+                .set(
+                    "total_fwd_fees",
+                    b.total_fwd_fees.unwrap_or_default().as_u128().to_string(),
+                )
+                .set(
+                    "total_action_fees",
+                    b.total_action_fees
+                        .unwrap_or_default()
+                        .as_u128()
+                        .to_string(),
+                )
+                .set("result_arg", b.result_arg)
+                .set("tot_actions", b.tot_actions)
+                .set("spec_actions", b.spec_actions)
+                .set("skipped_actions", b.skipped_actions)
+                .set("msgs_created", b.msgs_created)
+                .build(),
+        )
+    } else {
+        None
+    };
+    ObjectBuilder::new()
+        .set("compute_ph", compute_ph)
+        .set("aborted", aborted)
+        .set("destroyed", desc.destroyed)
+        .set("bounce", bounce)
+        .set("storage", storage)
+        .set("action", action)
+        .set("credit_first", desc.credit_first)
         .build()
         .unchecked_into()
 }

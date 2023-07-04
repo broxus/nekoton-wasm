@@ -45,7 +45,9 @@ impl ProxyTransport {
 impl Transport for ProxyTransport {
     fn info(&self) -> TransportInfo {
         let info = self.connection.info();
-        serde_wasm_bindgen::from_value(info).map_err(|e| anyhow::Error::msg(e.to_string())).unwrap()
+        serde_wasm_bindgen::from_value(info)
+            .map_err(|e| anyhow::Error::msg(e.to_string()))
+            .unwrap()
     }
 
     async fn send_message(&self, message: &ton_block::Message) -> Result<()> {
@@ -150,8 +152,9 @@ impl Transport for ProxyTransport {
         _clock: &dyn Clock,
         _force: bool,
     ) -> Result<ton_executor::BlockchainConfig> {
-        let config_str: String = serde_wasm_bindgen::from_value(self.connection.get_blockchain_config())
-            .map_err(|e| anyhow::Error::msg(e.to_string()))?;
+        let config_str: String =
+            serde_wasm_bindgen::from_value(self.connection.get_blockchain_config())
+                .map_err(|e| anyhow::Error::msg(e.to_string()))?;
         let raw_config = ton_block::ConfigParams::construct_from_base64(&config_str).unwrap();
         ton_executor::BlockchainConfig::with_config(raw_config, 42)
     }
