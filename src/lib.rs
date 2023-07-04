@@ -968,3 +968,9 @@ pub fn create_external_message(
         .handle_error()?,
     })
 }
+
+#[wasm_bindgen(js_name = "getCapabilitiesFromConfig")]
+pub fn get_capabilities_from_config(config: &str) -> Result<u64, JsValue> {
+    let config = ton_block::ConfigParams::construct_from_base64(config).handle_error()?;
+    Ok(config.capabilities())
+}
