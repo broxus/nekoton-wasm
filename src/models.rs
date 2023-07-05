@@ -401,7 +401,7 @@ pub fn make_raw_message(data: &ton_block::Message) -> JsValue {
         .set("bodyHash", body_hash)
         .set("boc", message.boc.to_string())
         .set("init", init)
-        .set("msg_type", msg_type)
+        .set("msgType", msg_type)
         .build()
         .unchecked_into()
 }
