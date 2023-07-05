@@ -3,17 +3,17 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::str::FromStr;
-use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
+use std::sync::atomic::AtomicU64;
 
 use ed25519_dalek::{Signer, Verifier};
 use nt::abi::FunctionExt;
 use nt::transport::models::RawTransaction;
 use nt::utils::Clock;
-use ton_block::{Deserializable, GetRepresentationHash, Serializable};
+use ton_block::{Account, Deserializable, GetRepresentationHash, Serializable};
 use ton_executor::TransactionExecutor;
-use wasm_bindgen::prelude::*;
 use wasm_bindgen::{JsCast, JsValue};
+use wasm_bindgen::prelude::*;
 use zeroize::Zeroize;
 
 use crate::models::*;
@@ -734,7 +734,7 @@ pub fn unpack_tree(boc: &str) -> Result<JsTransactionTree, JsValue> {
 }
 
 #[wasm_bindgen(js_name = "decodeRawTransaction")]
-pub fn decode_raw_transaction(boc: &str) -> Result<JsValue, JsValue> {
+pub fn decode_raw_transaction(boc: &str) -> Result<JsRawTransaction, JsValue> {
     let bytes = base64::decode(boc).handle_error()?;
     let cell = ton_types::deserialize_tree_of_cells(&mut bytes.as_slice()).handle_error()?;
     let hash = cell.repr_hash();

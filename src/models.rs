@@ -12,6 +12,7 @@ use crate::tokens_object::*;
 use crate::utils::*;
 use crate::TransactionTree;
 
+
 #[wasm_bindgen(typescript_custom_section)]
 const MODELS: &str = r#"
 export type NetworkDescription = {
@@ -88,6 +89,92 @@ export type Transaction = {
     outMessages: Message[],
     boc: string
 };
+
+export type AccountStatus = 'uninit' | 'frozen' | 'active' | 'nonexist';
+export type MessageType = 'IntMsg' | 'ExtIn' | 'ExtOut';
+
+export type JsRawMessage = {
+  hash: string,
+  src: string,
+  dst: string,
+  value: number,
+  bounce: boolean,
+  bounced: boolean,
+  body: string,
+  bodyHash: string,
+  boc: string,
+  init: {
+    codeHash: string
+  },
+  msgType: MessageType
+};
+
+export type TransactionComputeType = 'vm' | 'skipped';
+export type TransactionBounceStatus = 'noFunds' | 'ok' | 'negFunds';
+export type TransactionStorageStatusChange = 'Unchanged' | 'Frozen' | 'Deleted';
+
+export type JsRawTransaction = {
+  lt: bigint,
+  hash: string,
+  prevTransLt: bigint,
+  prevTransHash: string,
+  now: number,
+  accountAddr: string,
+  description: {
+    compute: {
+      status: TransactionComputeType,
+      success: boolean,
+      exitCode: number,
+      msgStateUsed: boolean,
+      accountActivated: boolean,
+      gasFees: number,
+      gasUsed: number,
+      gasLimit: number,
+      gasCredit: number,
+      mode: number,
+      exitArg: undefined | number,
+      vmSteps: number
+    },
+    aborted: boolean,
+    destroyed: boolean,
+    bounce: undefined | (
+      {
+        status: TransactionBounceStatus
+      } & (
+        {
+          reqFwdFees: number
+        } | {
+          msgFees: number,
+          fwdFees: number
+        }
+      )
+    ),
+    storage: {
+      storageFeesCollected: number,
+      storageFeesDue: undefined | number,
+      statusChange: TransactionStorageStatusChange
+    },
+    action: {
+      resultCode: number,
+      success: boolean,
+      valid: boolean,
+      noFunds: boolean,
+      totalFwdFees: number,
+      totalActionFees: number,
+      resultArg: undefined,
+      totActions: number,
+      specActions: number,
+      skippedActions: number,
+      msgsCreated: number
+    },
+    creditFirst: boolean
+  },
+  origStatus: AccountStatus,
+  endStatus: AccountStatus,
+  totalFees: number,
+  inMessage: JsRawMessage,
+  outMessages: JsRawMessage[]
+}
 
 export type TransactionsBatchType = 'old' | 'new';
 
@@ -316,55 +403,12 @@ pub fn make_message(data: &models::Message) -> JsValue {
 }
 
 pub fn make_raw_message(data: &ton_block::Message) -> JsValue {
-    let body = data.body().map(|body| {
-        let data = body.into_cell();
-        MessageBody {
-            hash: data.repr_hash(),
-            data,
-        }
-    });
-
     let hash = data.hash().unwrap_or_default();
-    let msg_type;
-    let message = match data.header() {
-        ton_block::CommonMsgInfo::IntMsgInfo(header) => {
-            msg_type = "IntMsg";
-            models::Message {
-                hash,
-                src: match &header.src {
-                    ton_block::MsgAddressIntOrNone::Some(addr) => Some(addr.clone()),
-                    ton_block::MsgAddressIntOrNone::None => None,
-                },
-                dst: Some(header.dst.clone()),
-                value: header.value.grams.as_u128() as u64,
-                body,
-                bounce: header.bounce,
-                bounced: header.bounced,
-                ..Default::default()
-            }
-        }
-        ton_block::CommonMsgInfo::ExtInMsgInfo(header) => {
-            msg_type = "ExtIn";
-            models::Message {
-                hash,
-                src: None,
-                dst: Some(header.dst.clone()),
-                body,
-                ..Default::default()
-            }
-        }
-        ton_block::CommonMsgInfo::ExtOutMsgInfo(header) => {
-            msg_type = "ExtOut";
-            models::Message {
-                hash,
-                src: match &header.src {
-                    ton_block::MsgAddressIntOrNone::Some(addr) => Some(addr.clone()),
-                    ton_block::MsgAddressIntOrNone::None => None,
-                },
-                body,
-                ..Default::default()
-            }
-        }
+    let message = models::Message::try_from((hash, data.clone())).handle_error().unwrap();
+    let msg_type = match data.header() {
+        ton_block::CommonMsgInfo::IntMsgInfo(_header) => "IntMsg",
+        ton_block::CommonMsgInfo::ExtInMsgInfo(_header) => "ExtIn",
+        ton_block::CommonMsgInfo::ExtOutMsgInfo(_header) => "ExtOut"
     };
 
     let (body, body_hash) = if let Some(body) = &message.body {
@@ -474,7 +518,7 @@ pub fn make_transactions_list(
         .unchecked_into()
 }
 
-pub fn make_raw_transaction(raw_transaction: nt::transport::models::RawTransaction) -> JsValue {
+pub fn make_raw_transaction(raw_transaction: nt::transport::models::RawTransaction) -> JsRawTransaction {
     let nt::transport::models::RawTransaction { hash, data } = raw_transaction;
     let in_msg = {
         if let Some(msg) = &data.in_msg.and_then(|in_msg| in_msg.read_struct().ok()) {
@@ -612,7 +656,7 @@ pub fn make_raw_description(desc: ton_block::TransactionDescrOrdinary) -> JsValu
         None
     };
     ObjectBuilder::new()
-        .set("computePh", compute_ph)
+        .set("compute", compute_ph)
         .set("aborted", aborted)
         .set("destroyed", desc.destroyed)
         .set("bounce", bounce)
@@ -1052,4 +1096,10 @@ extern "C" {
 
     #[wasm_bindgen(typescript_type = "TransactionTree")]
     pub type JsTransactionTree;
+
+    #[wasm_bindgen(typescript_type = "JsRawTransaction")]
+    pub type JsRawTransaction;
+
+    #[wasm_bindgen(typescript_type = "JsRawMessage")]
+    pub type JsRawMessage;
 }
