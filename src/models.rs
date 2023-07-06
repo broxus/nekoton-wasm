@@ -5,13 +5,12 @@ use nt::core::models;
 use nt::core::models::MessageBody;
 use ton_block::{Deserializable, GetRepresentationHash, Serializable, TrBouncePhase};
 use ton_types::UInt256;
-use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
+use wasm_bindgen::prelude::*;
 
+use crate::{TransactionTree};
 use crate::tokens_object::*;
 use crate::utils::*;
-use crate::TransactionTree;
-
 
 #[wasm_bindgen(typescript_custom_section)]
 const MODELS: &str = r#"
@@ -95,15 +94,15 @@ export type MessageType = 'IntMsg' | 'ExtIn' | 'ExtOut';
 
 export type JsRawMessage = {
   hash: string,
-  src: string,
-  dst: string,
+  src?: string,
+  dst?: string,
   value: number,
   bounce: boolean,
   bounced: boolean,
-  body: string,
-  bodyHash: string,
+  body?: string,
+  bodyHash?: string,
   boc: string,
-  init: {
+  init?: {
     codeHash: string
   },
   msgType: MessageType
@@ -112,6 +111,26 @@ export type JsRawMessage = {
 export type TransactionComputeType = 'vm' | 'skipped';
 export type TransactionBounceStatus = 'noFunds' | 'ok' | 'negFunds';
 export type TransactionStorageStatusChange = 'Unchanged' | 'Frozen' | 'Deleted';
+export type TrComputeSkippedReason = 'NoState' | 'BadState' | 'NoGas' | 'Suspended';
+
+export type TrComputeSkipped = {
+  status: 'skipped',
+  reason: TrComputeSkippedReason
+}
+export type TrComputeVm = {
+  status: 'vm',
+  success: boolean,
+  exitCode: number,
+  msgStateUsed: boolean,
+  accountActivated: boolean,
+  gasFees: number,
+  gasUsed: number,
+  gasLimit: number,
+  gasCredit: number,
+  mode: number,
+  exitArg: undefined | number,
+  vmSteps: number
+}
 
 export type JsRawTransaction = {
   lt: bigint,
@@ -121,34 +140,20 @@ export type JsRawTransaction = {
   now: number,
   accountAddr: string,
   description: {
-    compute: {
-      status: TransactionComputeType,
-      success: boolean,
-      exitCode: number,
-      msgStateUsed: boolean,
-      accountActivated: boolean,
-      gasFees: number,
-      gasUsed: number,
-      gasLimit: number,
-      gasCredit: number,
-      mode: number,
-      exitArg: undefined | number,
-      vmSteps: number
-    },
+    compute: TrComputeVm | TrComputeSkipped,
     aborted: boolean,
     destroyed: boolean,
-    bounce: undefined | (
+    bounce: undefined |
       {
-        status: TransactionBounceStatus
-      } & (
-        {
-          reqFwdFees: number
-        } | {
-          msgFees: number,
-          fwdFees: number
-        }
-      )
-    ),
+        status: 'ok'
+        msgFees: number,
+        fwdFees: number
+      } | {
+        status: 'noFunds'
+        reqFwdFees: number
+      } | {
+        status: 'negFunds'
+      },
     storage: {
       storageFeesCollected: number,
       storageFeesDue: undefined | number,
