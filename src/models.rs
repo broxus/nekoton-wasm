@@ -89,7 +89,6 @@ export type Transaction = {
     boc: string
 };
 
-export type AccountStatus = 'uninit' | 'frozen' | 'active' | 'nonexist';
 export type MessageType = 'IntMsg' | 'ExtIn' | 'ExtOut';
 
 export type JsRawMessage = {
