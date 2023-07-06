@@ -105,7 +105,8 @@ export type JsRawMessage = {
   init?: {
     codeHash: string
   },
-  msgType: MessageType
+  msgType: MessageType,
+  lt?: number
 };
 
 export type TransactionComputeType = 'vm' | 'skipped';
