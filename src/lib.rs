@@ -92,6 +92,11 @@ pub fn parse_message_base64(message: &str) -> Result<Message, JsValue> {
         .map(JsValue::unchecked_into)
 }
 
+#[wasm_bindgen(js_name = "parseMessageBase64Extended")]
+pub fn parse_message_base64_extended(message: &str) -> Result<JsRawMessage, JsValue> {
+    Ok(make_raw_message(&ton_block::Message::construct_from_base64(message).handle_error()?))
+}
+
 #[wasm_bindgen(js_name = "parseFullAccountBoc")]
 pub fn parse_full_account_boc(account: &str) -> Result<OptionFullContractState, JsValue> {
     let account = parse_cell(account)?;

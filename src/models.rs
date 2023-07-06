@@ -412,7 +412,7 @@ pub fn make_message(data: &models::Message) -> JsValue {
         .unchecked_into()
 }
 
-pub fn make_raw_message(data: &ton_block::Message) -> JsValue {
+pub fn make_raw_message(data: &ton_block::Message) -> JsRawMessage {
     let hash = data.hash().unwrap_or_default();
     let message = models::Message::try_from((hash, data.clone()))
         .handle_error()
