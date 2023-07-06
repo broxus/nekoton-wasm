@@ -3,8 +3,8 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::str::FromStr;
-use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
+use std::sync::Arc;
 
 use ed25519_dalek::{Signer, Verifier};
 use nt::abi::FunctionExt;
@@ -12,8 +12,8 @@ use nt::transport::models::RawTransaction;
 use nt::utils::Clock;
 use ton_block::{Account, Deserializable, GetRepresentationHash, Serializable};
 use ton_executor::TransactionExecutor;
-use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen::prelude::*;
+use wasm_bindgen::{JsCast, JsValue};
 use zeroize::Zeroize;
 
 use crate::models::*;
@@ -194,6 +194,93 @@ pub fn execute_local(
     Ok(ObjectBuilder::new()
         .set("account", make_boc(&account)?)
         .set("transaction", make_transaction(tx))
+        .build()
+        .unchecked_into())
+}
+
+#[wasm_bindgen(js_name = "executeLocalExtended")]
+pub fn execute_local_extended(
+    config: &str,
+    account: &str,
+    message: &str,
+    utime: u32,
+    disable_signature_check: bool,
+    overwrite_balance: Option<String>,
+    global_id: Option<i32>,
+    debug: Option<bool>,
+) -> Result<TransactionExecutorExtendedOutput, JsValue> {
+    let mut account = parse_cell(account)?;
+    let last_trans_lt = ton_block::Account::construct_from_cell(account.clone())
+        .handle_error()?
+        .last_tr_time()
+        .unwrap_or_default();
+    let message = ton_block::Message::construct_from_base64(message).handle_error()?;
+
+    if let Some(amount) = overwrite_balance {
+        let amount = u64::from_str(amount.trim())
+            .map_err(|_| "Invalid amount")
+            .handle_error()?;
+        let balance = ton_block::CurrencyCollection::with_grams(amount);
+
+        let mut new_account = ton_block::Account::construct_from_cell(account).handle_error()?;
+        match &mut new_account {
+            new_account @ ton_block::Account::AccountNone => {
+                let address = message
+                    .dst()
+                    .ok_or("Message without destination address")
+                    .handle_error()?;
+                *new_account = ton_block::Account::with_address_and_ballance(&address, &balance);
+            }
+            ton_block::Account::Account(stuff) => {
+                stuff.storage.balance = balance;
+            }
+        };
+
+        account = new_account.serialize().handle_error()?;
+    };
+
+    let global_id = global_id.unwrap_or(42);
+
+    let config = ton_block::ConfigParams::construct_from_base64(config).handle_error()?;
+    let config = ton_executor::BlockchainConfig::with_config(config, global_id).handle_error()?;
+
+    let mut executor = ton_executor::OrdinaryTransactionExecutor::new(config);
+    executor.set_signature_check_disabled(disable_signature_check);
+
+    let params = ton_executor::ExecuteParams {
+        block_unixtime: utime,
+        block_lt: last_trans_lt + 10,
+        last_tr_lt: Arc::new(AtomicU64::new(last_trans_lt + 1)),
+        behavior_modifiers: Some(executor.behavior_modifiers()),
+        debug: debug.unwrap_or_default(),
+        ..Default::default()
+    };
+
+    let (hash, data) =
+        match executor.execute_with_libs_and_params(Some(&message), &mut account, params) {
+            Ok(tx) => {
+                let hash = tx.hash().handle_error()?;
+                (hash, tx)
+            }
+            Err(e) => {
+                return match e.downcast_ref::<ton_executor::ExecutorError>() {
+                    Some(ton_executor::ExecutorError::NoAcceptError(code, _)) => {
+                        Ok(ObjectBuilder::new()
+                            .set("exitCode", *code)
+                            .build()
+                            .unchecked_into())
+                    }
+                    _ => Err(e).handle_error(),
+                }
+            }
+        };
+
+    Ok(ObjectBuilder::new()
+        .set("account", make_boc(&account)?)
+        .set(
+            "transaction",
+            make_raw_transaction(nt::transport::models::RawTransaction { hash, data }),
+        )
         .build()
         .unchecked_into())
 }
