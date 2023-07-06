@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use nt::core::models;
-use nt::core::models::MessageBody;
+use nt::core::models::{MessageBody, TransactionError};
 use ton_block::{Deserializable, GetRepresentationHash, Serializable, TrBouncePhase};
 use ton_types::UInt256;
 use wasm_bindgen::prelude::*;
@@ -178,7 +178,8 @@ export type JsRawTransaction = {
   endStatus: AccountStatus,
   totalFees: number,
   inMessage: JsRawMessage,
-  outMessages: JsRawMessage[]
+  outMessages: JsRawMessage[],
+  boc: string,
 }
 
 export type TransactionsBatchType = 'old' | 'new';
@@ -535,6 +536,17 @@ pub fn make_raw_transaction(
     raw_transaction: nt::transport::models::RawTransaction,
 ) -> JsRawTransaction {
     let nt::transport::models::RawTransaction { hash, data } = raw_transaction;
+
+    let boc = data
+        .write_to_new_cell()
+        .map_err(|_| TransactionError::InvalidStructure)
+        .unwrap();
+    let boc = boc
+        .into_cell()
+        .unwrap();
+    let boc = ton_types::serialize_toc(&boc).map_err(|_| TransactionError::InvalidStructure).unwrap();
+    let boc = base64::encode(boc);
+
     let in_msg = {
         if let Some(msg) = &data.in_msg.and_then(|in_msg| in_msg.read_struct().ok()) {
             Some(make_raw_message(msg))
@@ -585,6 +597,7 @@ pub fn make_raw_transaction(
         .set("totalFees", data.total_fees.grams.as_u128().to_string())
         .set("inMessage", in_msg)
         .set("outMessages", out_msgs)
+        .set("boc", boc)
         .build()
         .unchecked_into()
 }
