@@ -4,7 +4,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::atomic::AtomicU64;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use ed25519_dalek::{Signer, Verifier};
 use nt::abi::FunctionExt;
@@ -247,12 +247,19 @@ pub fn execute_local_extended(
     let mut executor = ton_executor::OrdinaryTransactionExecutor::new(config);
     executor.set_signature_check_disabled(disable_signature_check);
 
+    let trace = Arc::new(Mutex::new("".to_string()));
+
+    let trace_clone = trace.clone();
     let params = ton_executor::ExecuteParams {
         block_unixtime: utime,
         block_lt: last_trans_lt + 10,
         last_tr_lt: Arc::new(AtomicU64::new(last_trans_lt + 1)),
         behavior_modifiers: Some(executor.behavior_modifiers()),
         debug: debug.unwrap_or_default(),
+        trace_callback: Some(Arc::new(move |_, engine_trace| {
+            let mut t = trace_clone.lock().unwrap();
+            *t = engine_trace.cmd_str.clone();
+        })),
         ..Default::default()
     };
 
@@ -275,8 +282,10 @@ pub fn execute_local_extended(
             }
         };
 
+    let trace_text = trace.lock().unwrap();
     Ok(ObjectBuilder::new()
         .set("account", make_boc(&account)?)
+        .set("trace", trace_text.to_string())
         .set(
             "transaction",
             make_raw_transaction(nt::transport::models::RawTransaction { hash, data }),
