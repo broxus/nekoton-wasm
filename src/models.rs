@@ -543,6 +543,7 @@ pub fn make_raw_transaction(
         .unwrap();
     let boc = boc
         .into_cell()
+        .map_err(|_| TransactionError::InvalidStructure)
         .unwrap();
     let boc = ton_types::serialize_toc(&boc).map_err(|_| TransactionError::InvalidStructure).unwrap();
     let boc = base64::encode(boc);
