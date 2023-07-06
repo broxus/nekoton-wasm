@@ -235,6 +235,10 @@ export type TransactionExecutorOutput =
     | { exitCode: number }
     | { account: string, transaction: Transaction };
 
+export type TransactionExecutorExtendedOutput =
+    | { exitCode: number }
+    | { account: string, transaction: JsRawTransaction, trace: string };
+
 export type ExecutionOutput = {
     output?: TokensObject,
     code: number,
