@@ -94,7 +94,9 @@ pub fn parse_message_base64(message: &str) -> Result<Message, JsValue> {
 
 #[wasm_bindgen(js_name = "parseMessageBase64Extended")]
 pub fn parse_message_base64_extended(message: &str) -> Result<JsRawMessage, JsValue> {
-    Ok(make_raw_message(&ton_block::Message::construct_from_base64(message).handle_error()?))
+    Ok(make_raw_message(
+        &ton_block::Message::construct_from_base64(message).handle_error()?,
+    ))
 }
 
 #[wasm_bindgen(js_name = "parseFullAccountBoc")]
@@ -252,7 +254,7 @@ pub fn execute_local_extended(
     let mut executor = ton_executor::OrdinaryTransactionExecutor::new(config);
     executor.set_signature_check_disabled(disable_signature_check);
 
-    let trace = Arc::new(Mutex::new("".to_string()));
+    let trace = Arc::new(Mutex::new(EngineTraceInfoData::default()));
 
     let trace_clone = trace.clone();
     let params = ton_executor::ExecuteParams {
@@ -263,7 +265,7 @@ pub fn execute_local_extended(
         debug: debug.unwrap_or_default(),
         trace_callback: Some(Arc::new(move |_, engine_trace| {
             let mut t = trace_clone.lock().unwrap();
-            *t = engine_trace.cmd_str.clone();
+            *t = EngineTraceInfoData::from(&engine_trace);
         })),
         ..Default::default()
     };
@@ -287,10 +289,11 @@ pub fn execute_local_extended(
             }
         };
 
-    let trace_text = trace.lock().unwrap();
+    let trace_js = trace.lock().unwrap();
+    let trace_js = make_engine_trace(trace_js.clone())?;
     Ok(ObjectBuilder::new()
         .set("account", make_boc(&account)?)
-        .set("trace", trace_text.to_string())
+        .set("trace", trace_js.clone())
         .set(
             "transaction",
             make_raw_transaction(nt::transport::models::RawTransaction { hash, data }),

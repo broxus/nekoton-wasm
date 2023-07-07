@@ -238,7 +238,16 @@ export type TransactionExecutorOutput =
 
 export type TransactionExecutorExtendedOutput =
     | { exitCode: number }
-    | { account: string, transaction: JsRawTransaction, trace: string };
+    | { account: string, transaction: JsRawTransaction, trace: EngineTraceInfo };
+
+export type EngineTraceInfo = {
+  infoType: string,
+  step: number,
+  cmdStr: string,
+  stack: string[],
+  gasUsed: string,
+  gasCmd: string,
+}
 
 export type ExecutionOutput = {
     output?: TokensObject,
@@ -545,7 +554,9 @@ pub fn make_raw_transaction(
         .into_cell()
         .map_err(|_| TransactionError::InvalidStructure)
         .unwrap();
-    let boc = ton_types::serialize_toc(&boc).map_err(|_| TransactionError::InvalidStructure).unwrap();
+    let boc = ton_types::serialize_toc(&boc)
+        .map_err(|_| TransactionError::InvalidStructure)
+        .unwrap();
     let boc = base64::encode(boc);
 
     let in_msg = {
@@ -984,6 +995,46 @@ pub fn make_boc_with_hash(cell: ton_types::Cell) -> Result<BocWithHash, JsValue>
         .unchecked_into())
 }
 
+#[derive(Clone, Default)]
+pub struct EngineTraceInfoData {
+    pub info_type: String,
+    pub step: u32, // number of executable command
+    pub cmd_str: String,
+    pub stack: Vec<String>,
+    pub gas_used: i64,
+    pub gas_cmd: i64,
+}
+
+impl EngineTraceInfoData {
+    pub fn from(info: &ton_vm::executor::EngineTraceInfo) -> Self {
+        Self {
+            info_type: format!("{:#?}", info.info_type),
+            step: info.step,
+            cmd_str: info.cmd_str.clone(),
+            stack: info.stack.storage.iter().map(|s| s.to_string()).collect(),
+            gas_used: info.gas_used,
+            gas_cmd: info.gas_cmd,
+        }
+    }
+}
+
+pub fn make_engine_trace(engine_trace: EngineTraceInfoData) -> Result<EngineTraceInfo, JsValue> {
+    let stack = engine_trace
+        .stack
+        .into_iter()
+        .map(|s| JsValue::from(s))
+        .collect::<js_sys::Array>();
+    Ok(ObjectBuilder::new()
+        .set("infoType", engine_trace.info_type)
+        .set("step", engine_trace.step)
+        .set("cmdStr", engine_trace.cmd_str)
+        .set("stack", stack)
+        .set("gasUsed", engine_trace.gas_used.to_string())
+        .set("gasCmd", engine_trace.gas_cmd.to_string())
+        .build()
+        .unchecked_into())
+}
+
 pub fn serialize_into_boc_with_hash(data: &dyn Serializable) -> Result<BocWithHash, JsValue> {
     let cell = data.serialize().handle_error()?;
     make_boc_with_hash(cell)
@@ -1125,6 +1176,9 @@ extern "C" {
 
     #[wasm_bindgen(typescript_type = "ExtendedSignature")]
     pub type ExtendedSignature;
+
+    #[wasm_bindgen(typescript_type = "EngineTraceInfo")]
+    pub type EngineTraceInfo;
 
     #[wasm_bindgen(typescript_type = "TransactionTree")]
     pub type JsTransactionTree;
