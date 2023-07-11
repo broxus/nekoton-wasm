@@ -259,35 +259,20 @@ pub fn execute_local_extended(
 
     let trace_clone = trace.clone();
 
-    let trace_callback: Option<
-        Arc<
-            (dyn for<'a, 'b, 'c> Fn(&'a Engine, &'b ton_vm::executor::EngineTraceInfo<'c>)
-                 + Sync
-                 + Send
-                 + 'static),
-        >,
-    > = match trace_logs {
-        None => None,
-        Some(f) => {
-            if f {
-                Some(Arc::new(move |_, engine_trace| {
-                    let mut t = trace_clone.lock().unwrap();
-                    t.push(EngineTraceInfoData::from(&engine_trace));
-                }))
-            } else {
-                None
-            }
-        }
-    };
-
-    let params = ton_executor::ExecuteParams {
+    let mut params = ton_executor::ExecuteParams {
         block_unixtime: utime,
         block_lt: last_trans_lt + 10,
         last_tr_lt: Arc::new(AtomicU64::new(last_trans_lt + 1)),
         behavior_modifiers: Some(executor.behavior_modifiers()),
-        trace_callback,
         ..Default::default()
     };
+
+    if let Some(true) = trace_logs {
+        params.trace_callback = Some(Arc::new(move |_, engine_trace| {
+            let mut t = trace_clone.lock().unwrap();
+            t.push(EngineTraceInfoData::from(engine_trace));
+        }));
+    }
 
     let (hash, data) =
         match executor.execute_with_libs_and_params(Some(&message), &mut account, params) {
