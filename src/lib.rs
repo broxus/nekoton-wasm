@@ -12,6 +12,7 @@ use nt::transport::models::RawTransaction;
 use nt::utils::Clock;
 use ton_block::{Deserializable, GetRepresentationHash, Serializable};
 use ton_executor::TransactionExecutor;
+use ton_vm::executor::Engine;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::{JsCast, JsValue};
 use zeroize::Zeroize;
@@ -214,7 +215,7 @@ pub fn execute_local_extended(
     disable_signature_check: bool,
     overwrite_balance: Option<String>,
     global_id: Option<i32>,
-    debug: Option<bool>,
+    trace_logs: Option<bool>,
 ) -> Result<TransactionExecutorExtendedOutput, JsValue> {
     let mut account = parse_cell(account)?;
     let last_trans_lt = ton_block::Account::construct_from_cell(account.clone())
@@ -257,16 +258,34 @@ pub fn execute_local_extended(
     let trace = Arc::new(Mutex::new(vec![]));
 
     let trace_clone = trace.clone();
+
+    let trace_callback: Option<
+        Arc<
+            (dyn for<'a, 'b, 'c> Fn(&'a Engine, &'b ton_vm::executor::EngineTraceInfo<'c>)
+                 + Sync
+                 + Send
+                 + 'static),
+        >,
+    > = match trace_logs {
+        None => None,
+        Some(f) => {
+            if f {
+                Some(Arc::new(move |_, engine_trace| {
+                    let mut t = trace_clone.lock().unwrap();
+                    t.push(EngineTraceInfoData::from(&engine_trace));
+                }))
+            } else {
+                None
+            }
+        }
+    };
+
     let params = ton_executor::ExecuteParams {
         block_unixtime: utime,
         block_lt: last_trans_lt + 10,
         last_tr_lt: Arc::new(AtomicU64::new(last_trans_lt + 1)),
         behavior_modifiers: Some(executor.behavior_modifiers()),
-        debug: debug.unwrap_or_default(),
-        trace_callback: Some(Arc::new(move |_, engine_trace| {
-            let mut t = trace_clone.lock().unwrap();
-            t.push(EngineTraceInfoData::from(&engine_trace));
-        })),
+        trace_callback,
         ..Default::default()
     };
 
