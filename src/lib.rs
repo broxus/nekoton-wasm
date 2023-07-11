@@ -10,7 +10,7 @@ use ed25519_dalek::{Signer, Verifier};
 use nt::abi::FunctionExt;
 use nt::transport::models::RawTransaction;
 use nt::utils::Clock;
-use ton_block::{Account, Deserializable, GetRepresentationHash, Serializable};
+use ton_block::{Deserializable, GetRepresentationHash, Serializable};
 use ton_executor::TransactionExecutor;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::{JsCast, JsValue};
@@ -254,7 +254,7 @@ pub fn execute_local_extended(
     let mut executor = ton_executor::OrdinaryTransactionExecutor::new(config);
     executor.set_signature_check_disabled(disable_signature_check);
 
-    let trace = Arc::new(Mutex::new(EngineTraceInfoData::default()));
+    let trace = Arc::new(Mutex::new(vec![]));
 
     let trace_clone = trace.clone();
     let params = ton_executor::ExecuteParams {
@@ -265,7 +265,7 @@ pub fn execute_local_extended(
         debug: debug.unwrap_or_default(),
         trace_callback: Some(Arc::new(move |_, engine_trace| {
             let mut t = trace_clone.lock().unwrap();
-            *t = EngineTraceInfoData::from(&engine_trace);
+            t.push(EngineTraceInfoData::from(&engine_trace));
         })),
         ..Default::default()
     };
@@ -290,10 +290,16 @@ pub fn execute_local_extended(
         };
 
     let trace_js = trace.lock().unwrap();
-    let trace_js = make_engine_trace(trace_js.clone())?;
+    let trace_res_vec_js: Result<Vec<_>, _> = trace_js.iter().map(make_engine_trace).collect();
+    let trace_vec_js = trace_res_vec_js?;
+    let trace_js_array = trace_vec_js
+        .into_iter()
+        .map(JsValue::from)
+        .collect::<js_sys::Array>();
+
     Ok(ObjectBuilder::new()
         .set("account", make_boc(&account)?)
-        .set("trace", trace_js.clone())
+        .set("trace", trace_js_array)
         .set(
             "transaction",
             make_raw_transaction(nt::transport::models::RawTransaction { hash, data }),

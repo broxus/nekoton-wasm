@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use nt::core::models;
-use nt::core::models::{MessageBody, TransactionError};
+use nt::core::models::TransactionError;
 use ton_block::{Deserializable, GetRepresentationHash, Serializable, TrBouncePhase};
 use ton_types::UInt256;
 use wasm_bindgen::prelude::*;
@@ -238,7 +238,7 @@ export type TransactionExecutorOutput =
 
 export type TransactionExecutorExtendedOutput =
     | { exitCode: number }
-    | { account: string, transaction: JsRawTransaction, trace: EngineTraceInfo };
+    | { account: string, transaction: JsRawTransaction, trace: EngineTraceInfo[] };
 
 export type EngineTraceInfo = {
   infoType: string,
@@ -247,6 +247,10 @@ export type EngineTraceInfo = {
   stack: string[],
   gasUsed: string,
   gasCmd: string,
+  cmdCodeRemBits: string,
+  cmdCodeHex: string,
+  cmdCodeCellHash: string,
+  cmdCodeOffset: string,
 }
 
 export type ExecutionOutput = {
@@ -1003,10 +1007,19 @@ pub struct EngineTraceInfoData {
     pub stack: Vec<String>,
     pub gas_used: i64,
     pub gas_cmd: i64,
+    pub cmd_code_rem_bits: u32,
+    pub cmd_code_hex: String,
+    pub cmd_code_cell_hash: String,
+    pub cmd_code_offset: u32,
 }
 
 impl EngineTraceInfoData {
     pub fn from(info: &ton_vm::executor::EngineTraceInfo) -> Self {
+        let cmd_code_rem_bits = info.cmd_code.remaining_bits() as u32;
+        let cmd_code_hex = info.cmd_code.to_hex_string();
+        let cmd_code_cell_hash = info.cmd_code.cell().repr_hash().to_hex_string();
+        let cmd_code_offset = info.cmd_code.pos() as u32;
+
         Self {
             info_type: format!("{:#?}", info.info_type),
             step: info.step,
@@ -1014,23 +1027,31 @@ impl EngineTraceInfoData {
             stack: info.stack.storage.iter().map(|s| s.to_string()).collect(),
             gas_used: info.gas_used,
             gas_cmd: info.gas_cmd,
+            cmd_code_rem_bits,
+            cmd_code_hex,
+            cmd_code_cell_hash,
+            cmd_code_offset,
         }
     }
 }
 
-pub fn make_engine_trace(engine_trace: EngineTraceInfoData) -> Result<EngineTraceInfo, JsValue> {
+pub fn make_engine_trace(engine_trace: &EngineTraceInfoData) -> Result<EngineTraceInfo, JsValue> {
     let stack = engine_trace
         .stack
-        .into_iter()
+        .iter()
         .map(|s| JsValue::from(s))
         .collect::<js_sys::Array>();
     Ok(ObjectBuilder::new()
-        .set("infoType", engine_trace.info_type)
+        .set("infoType", engine_trace.info_type.clone())
         .set("step", engine_trace.step)
-        .set("cmdStr", engine_trace.cmd_str)
+        .set("cmdStr", engine_trace.cmd_str.clone())
         .set("stack", stack)
         .set("gasUsed", engine_trace.gas_used.to_string())
         .set("gasCmd", engine_trace.gas_cmd.to_string())
+        .set("cmdCodeRemBits", engine_trace.cmd_code_rem_bits.to_string())
+        .set("cmdCodeHex", engine_trace.cmd_code_hex.clone())
+        .set("cmdCodeCellHash", engine_trace.cmd_code_cell_hash.clone())
+        .set("cmdCodeOffset", engine_trace.cmd_code_offset.to_string())
         .build()
         .unchecked_into())
 }
