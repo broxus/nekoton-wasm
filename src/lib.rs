@@ -12,7 +12,6 @@ use nt::transport::models::RawTransaction;
 use nt::utils::Clock;
 use ton_block::{Deserializable, GetRepresentationHash, Serializable};
 use ton_executor::TransactionExecutor;
-use ton_vm::executor::Engine;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::{JsCast, JsValue};
 use zeroize::Zeroize;
