@@ -168,11 +168,11 @@ const PROXY_TRANSPORT: &str = r#"
 export interface IProxyConnector {
   info(): TransportInfo;
   sendMessage(message: string): void;
-  getContractState(address: string): RawContractState | undefined;
+  getContractState(address: string): RawContractState | null;
   getAccountsByCodeHash(codeHash: string, limit: number, continuation?: string): string[];
   getTransactions(address: string, fromLt: string, count: number): string[];
-  getTransaction(id: string): string | undefined;
-  getDstTransaction(msg_hash: string): string | undefined;
+  getTransaction(id: string): string | null;
+  getDstTransaction(msg_hash: string): string | null;
   getLatestKeyBlock(): string;
   getCapabilities(clock_offset_as_sec: string, clock_offset_as_ms: string): string[];
   getBlockchainConfig(): string[];
