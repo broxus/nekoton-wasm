@@ -172,19 +172,7 @@ export type JsRawTransaction = {
       storageFeesDue: undefined | number,
       statusChange: TransactionStorageStatusChange
     },
-    action: {
-      resultCode: number,
-      success: boolean,
-      valid: boolean,
-      noFunds: boolean,
-      totalFwdFees: number,
-      totalActionFees: number,
-      resultArg: number,
-      totActions: number,
-      specActions: number,
-      skippedActions: number,
-      msgsCreated: number
-    },
+    action: TrAction | undefined,
     creditFirst: boolean
   },
   origStatus: AccountStatus,
@@ -641,7 +629,7 @@ pub fn make_raw_description(desc: ton_block::TransactionDescrOrdinary) -> JsValu
             .set("accountActivated", vm.account_activated)
             .set("gasFees", vm.gas_fees.as_u128().to_string())
             .set("gasUsed", vm.gas_used.to_string())
-            .set("gasLimit", vm.gas_used.to_string())
+            .set("gasLimit", vm.gas_limit.to_string())
             .set("gasCredit", vm.gas_credit.unwrap_or_default().to_string())
             .set("mode", vm.mode)
             .set("exitArg", vm.exit_arg)
