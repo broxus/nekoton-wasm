@@ -58,7 +58,14 @@ impl Transport for ProxyTransport {
 
     async fn get_contract_state(&self, address: &MsgAddressInt) -> Result<RawContractState> {
         let state = self.connection.get_contract_state(&address.to_string());
-        serde_wasm_bindgen::from_value(state).map_err(|e| anyhow::Error::msg(e.to_string()))
+
+        match state {
+            value if value == JsValue::UNDEFINED => Ok(RawContractState::NotExists),
+            boc => {
+                serde_wasm_bindgen::from_value(boc).map_err(|e| anyhow::Error::msg(e.to_string()))
+
+            }
+        }
     }
 
     async fn get_accounts_by_code_hash(
@@ -99,7 +106,7 @@ impl Transport for ProxyTransport {
     async fn get_transaction(&self, id: &ton_types::UInt256) -> Result<Option<RawTransaction>> {
         let transaction = self.connection.get_transaction(&id.to_string());
         match transaction {
-            value if value == JsValue::NULL => Ok(None),
+            value if value == JsValue::UNDEFINED => Ok(None),
             boc => {
                 let boc: String = serde_wasm_bindgen::from_value(boc)
                     .map_err(|e| anyhow::Error::msg(e.to_string()))?;
@@ -116,7 +123,7 @@ impl Transport for ProxyTransport {
             .connection
             .get_dst_transaction(&message_hash.to_hex_string());
         match transaction {
-            value if value == JsValue::NULL => Ok(None),
+            value if value == JsValue::UNDEFINED => Ok(None),
             boc => {
                 let boc: String = serde_wasm_bindgen::from_value(boc)
                     .map_err(|e| anyhow::Error::msg(e.to_string()))?;
