@@ -131,6 +131,19 @@ export type TrComputeVm = {
   exitArg: undefined | number,
   vmSteps: number
 }
+export type TrAction = {
+  resultCode: number,
+  success: boolean,
+  valid: boolean,
+  noFunds: boolean,
+  totalFwdFees: number,
+  totalActionFees: number,
+  resultArg: number,
+  totActions: number,
+  specActions: number,
+  skippedActions: number,
+  msgsCreated: number
+}
 
 export type JsRawTransaction = {
   lt: bigint,
