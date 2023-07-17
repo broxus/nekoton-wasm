@@ -15,12 +15,14 @@ lto = true
 panic = "abort"
 incremental = false
 codegen-units = 1
-opt-level = "z"
+#opt-level = "z"
 
-[package.metadata.wasm-pack.profile.release]
-wasm-opt = ["-Oz", "--enable-mutable-globals"]
+#[package.metadata.wasm-pack.profile.release]
+#wasm-opt = ["-Oz", "--enable-mutable-globals"]
+
 
 [dependencies]
+dlmalloc = { version = "0.2.4",features =["global"] }
 anyhow = "1.0"
 async-trait = "0.1"
 base64 = "0.13"
@@ -31,12 +33,15 @@ js-sys = "0.3"
 num-bigint = "0.4"
 num-traits = "0.2"
 rand = { version = "0.8", features = ["getrandom"] }
+serde = "1.0"
 sha2 = "0.9.9"
 thiserror = "1.0"
 tokio = { version = "1", features = ["sync"] }
 wasm-bindgen = { version = "0.2.79", features = ["serde-serialize"] }
 wasm-bindgen-futures = "0.4"
 zeroize = "1"
+wasm-bindgen-test = "0.3.0"
+
 
 ed25519-dalek = { git = "https://github.com/broxus/ed25519-dalek.git" }
 
@@ -44,13 +49,12 @@ ton_abi = { git = "https://github.com/broxus/ton-labs-abi.git" }
 ton_block = { git = "https://github.com/broxus/ton-labs-block.git", features = ["venom"] }
 ton_types = { git = "https://github.com/broxus/ton-labs-types.git" }
 ton_executor = { git = "https://github.com/broxus/ton-labs-executor.git" }
-ton_vm = { git = "https://github.com/broxus/ton-labs-vm.git"}
-serde-wasm-bindgen = "0.5.0"
+instant = { version = "0.1", features = [ "wasm-bindgen", "inaccurate" ] }
 
 [dependencies.nt]
 package = "nekoton"
 git = "https://github.com/broxus/nekoton.git"
-branch = "feat/extend-models"
+branch = "master"
 features = ["web", "gql_transport", "jrpc_transport"]
 
 [patch.crates-io]

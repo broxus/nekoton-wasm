@@ -3,17 +3,17 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::str::FromStr;
+use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
-use std::sync::{Arc, Mutex};
 
+use dlmalloc::GlobalDlmalloc;
 use ed25519_dalek::{Signer, Verifier};
 use nt::abi::FunctionExt;
-use nt::transport::models::RawTransaction;
 use nt::utils::Clock;
 use ton_block::{Deserializable, GetRepresentationHash, Serializable};
 use ton_executor::TransactionExecutor;
-use wasm_bindgen::prelude::*;
 use wasm_bindgen::{JsCast, JsValue};
+use wasm_bindgen::prelude::*;
 use zeroize::Zeroize;
 
 use crate::models::*;
@@ -26,6 +26,10 @@ mod models;
 mod tokens_object;
 mod transport;
 mod utils;
+
+#[global_allocator]
+static GLOBAL: GlobalDlmalloc = GlobalDlmalloc;
+
 
 #[wasm_bindgen(js_name = "checkAddress")]
 pub fn check_address(address: &str) -> bool {
@@ -80,23 +84,6 @@ pub fn make_full_account_boc(account_stuff_boc: Option<String>) -> Result<String
         None => ton_block::Account::AccountNone,
     };
     serialize_into_boc(&account)
-}
-
-#[wasm_bindgen(js_name = "parseMessageBase64")]
-pub fn parse_message_base64(message: &str) -> Result<Message, JsValue> {
-    let msg = ton_block::Message::construct_from_base64(message).handle_error()?;
-    let nt_msg =
-        nt::core::models::Message::try_from((msg.hash().handle_error()?, msg)).handle_error()?;
-    serde_wasm_bindgen::to_value(&nt_msg)
-        .handle_error()
-        .map(JsValue::unchecked_into)
-}
-
-#[wasm_bindgen(js_name = "parseMessageBase64Extended")]
-pub fn parse_message_base64_extended(message: &str) -> Result<JsRawMessage, JsValue> {
-    Ok(make_raw_message(
-        &ton_block::Message::construct_from_base64(message).handle_error()?,
-    ))
 }
 
 #[wasm_bindgen(js_name = "parseFullAccountBoc")]
@@ -205,111 +192,6 @@ pub fn execute_local(
         .unchecked_into())
 }
 
-#[wasm_bindgen(js_name = "executeLocalExtended")]
-pub fn execute_local_extended(
-    config: &str,
-    account: &str,
-    message: &str,
-    utime: u32,
-    disable_signature_check: bool,
-    overwrite_balance: Option<String>,
-    global_id: Option<i32>,
-    trace_logs: Option<bool>,
-) -> Result<TransactionExecutorExtendedOutput, JsValue> {
-    let mut account = parse_cell(account)?;
-    let last_trans_lt = ton_block::Account::construct_from_cell(account.clone())
-        .handle_error()?
-        .last_tr_time()
-        .unwrap_or_default();
-    let message = ton_block::Message::construct_from_base64(message).handle_error()?;
-
-    if let Some(amount) = overwrite_balance {
-        let amount = u64::from_str(amount.trim())
-            .map_err(|_| "Invalid amount")
-            .handle_error()?;
-        let balance = ton_block::CurrencyCollection::with_grams(amount);
-
-        let mut new_account = ton_block::Account::construct_from_cell(account).handle_error()?;
-        match &mut new_account {
-            new_account @ ton_block::Account::AccountNone => {
-                let address = message
-                    .dst()
-                    .ok_or("Message without destination address")
-                    .handle_error()?;
-                *new_account = ton_block::Account::with_address_and_ballance(&address, &balance);
-            }
-            ton_block::Account::Account(stuff) => {
-                stuff.storage.balance = balance;
-            }
-        };
-
-        account = new_account.serialize().handle_error()?;
-    };
-
-    let global_id = global_id.unwrap_or(42);
-
-    let config = ton_block::ConfigParams::construct_from_base64(config).handle_error()?;
-    let config = ton_executor::BlockchainConfig::with_config(config, global_id).handle_error()?;
-
-    let mut executor = ton_executor::OrdinaryTransactionExecutor::new(config);
-    executor.set_signature_check_disabled(disable_signature_check);
-
-    let trace = Arc::new(Mutex::new(vec![]));
-
-    let trace_clone = trace.clone();
-
-    let mut params = ton_executor::ExecuteParams {
-        block_unixtime: utime,
-        block_lt: last_trans_lt + 10,
-        last_tr_lt: Arc::new(AtomicU64::new(last_trans_lt + 1)),
-        behavior_modifiers: Some(executor.behavior_modifiers()),
-        ..Default::default()
-    };
-
-    if let Some(true) = trace_logs {
-        params.trace_callback = Some(Arc::new(move |_, engine_trace| {
-            let mut t = trace_clone.lock().unwrap();
-            t.push(EngineTraceInfoData::from(engine_trace));
-        }));
-    }
-
-    let (hash, data) =
-        match executor.execute_with_libs_and_params(Some(&message), &mut account, params) {
-            Ok(tx) => {
-                let hash = tx.hash().handle_error()?;
-                (hash, tx)
-            }
-            Err(e) => {
-                return match e.downcast_ref::<ton_executor::ExecutorError>() {
-                    Some(ton_executor::ExecutorError::NoAcceptError(code, _)) => {
-                        Ok(ObjectBuilder::new()
-                            .set("exitCode", *code)
-                            .build()
-                            .unchecked_into())
-                    }
-                    _ => Err(e).handle_error(),
-                }
-            }
-        };
-
-    let trace_js = trace.lock().unwrap();
-    let trace_res_vec_js: Result<Vec<_>, _> = trace_js.iter().map(make_engine_trace).collect();
-    let trace_vec_js = trace_res_vec_js?;
-    let trace_js_array = trace_vec_js
-        .into_iter()
-        .map(JsValue::from)
-        .collect::<js_sys::Array>();
-
-    Ok(ObjectBuilder::new()
-        .set("account", make_boc(&account)?)
-        .set("trace", trace_js_array)
-        .set(
-            "transaction",
-            make_raw_transaction(nt::transport::models::RawTransaction { hash, data }),
-        )
-        .build()
-        .unchecked_into())
-}
 
 #[wasm_bindgen(js_name = "getExpectedAddress")]
 pub fn get_expected_address(
@@ -846,15 +728,6 @@ pub fn unpack_tree(boc: &str) -> Result<JsTransactionTree, JsValue> {
     Ok(make_transaction_tree(tree))
 }
 
-#[wasm_bindgen(js_name = "decodeRawTransaction")]
-pub fn decode_raw_transaction(boc: &str) -> Result<JsRawTransaction, JsValue> {
-    let bytes = base64::decode(boc).handle_error()?;
-    let cell = ton_types::deserialize_tree_of_cells(&mut bytes.as_slice()).handle_error()?;
-    let hash = cell.repr_hash();
-    let data = ton_block::Transaction::construct_from_cell(cell).handle_error()?;
-    Ok(make_raw_transaction(RawTransaction { hash, data }))
-}
-
 pub struct TransactionTree {
     root: nt::core::models::Transaction,
     children: Vec<TransactionTree>,
@@ -1080,10 +953,4 @@ pub fn create_external_message(
         )
         .handle_error()?,
     })
-}
-
-#[wasm_bindgen(js_name = "getCapabilitiesFromConfig")]
-pub fn get_capabilities_from_config(config: &str) -> Result<u64, JsValue> {
-    let config = ton_block::ConfigParams::construct_from_base64(config).handle_error()?;
-    Ok(config.capabilities())
 }
