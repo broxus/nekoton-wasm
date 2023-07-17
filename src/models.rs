@@ -788,9 +788,6 @@ extern "C" {
     #[wasm_bindgen(typescript_type = "ExtendedSignature")]
     pub type ExtendedSignature;
 
-    #[wasm_bindgen(typescript_type = "EngineTraceInfo")]
-    pub type EngineTraceInfo;
-
     #[wasm_bindgen(typescript_type = "TransactionTree")]
     pub type JsTransactionTree;
 }

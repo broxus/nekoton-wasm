@@ -27,9 +27,6 @@ mod tokens_object;
 mod transport;
 mod utils;
 
-#[global_allocator]
-static GLOBAL: GlobalDlmalloc = GlobalDlmalloc;
-
 
 #[wasm_bindgen(js_name = "checkAddress")]
 pub fn check_address(address: &str) -> bool {
