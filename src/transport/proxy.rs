@@ -47,21 +47,21 @@ impl Transport for ProxyTransport {
         todo!()
     }
 
-    async fn send_message(&self, message: &ton_block::Message) -> Result<()> {
+    async fn send_message(&self, _message: &ton_block::Message) -> Result<()> {
         todo!()
 
     }
 
-    async fn get_contract_state(&self, address: &MsgAddressInt) -> Result<RawContractState> {
+    async fn get_contract_state(&self, _address: &MsgAddressInt) -> Result<RawContractState> {
         todo!()
 
     }
 
     async fn get_accounts_by_code_hash(
         &self,
-        code_hash: &ton_types::UInt256,
-        limit: u8,
-        continuation: &Option<MsgAddressInt>,
+        _code_hash: &ton_types::UInt256,
+        _limit: u8,
+        _continuation: &Option<MsgAddressInt>,
     ) -> Result<Vec<MsgAddressInt>> {
         todo!()
 
@@ -69,22 +69,22 @@ impl Transport for ProxyTransport {
 
     async fn get_transactions(
         &self,
-        address: &MsgAddressInt,
-        from_lt: u64,
-        count: u8,
+        _address: &MsgAddressInt,
+        _from_lt: u64,
+        _count: u8,
     ) -> Result<Vec<RawTransaction>> {
         todo!()
 
     }
 
-    async fn get_transaction(&self, id: &ton_types::UInt256) -> Result<Option<RawTransaction>> {
+    async fn get_transaction(&self, _id: &ton_types::UInt256) -> Result<Option<RawTransaction>> {
         todo!()
 
     }
 
     async fn get_dst_transaction(
         &self,
-        message_hash: &ton_types::UInt256,
+        _message_hash: &ton_types::UInt256,
     ) -> Result<Option<RawTransaction>> {
         todo!()
 
@@ -95,7 +95,7 @@ impl Transport for ProxyTransport {
 
     }
 
-    async fn get_capabilities(&self, clock: &dyn Clock) -> Result<NetworkCapabilities> {
+    async fn get_capabilities(&self, _clock: &dyn Clock) -> Result<NetworkCapabilities> {
         todo!()
 
     }

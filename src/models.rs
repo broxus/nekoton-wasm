@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use nt::core::models;
-use nt::core::models::TransactionError;
-use ton_block::{Deserializable, GetRepresentationHash, Serializable, TrBouncePhase};
+
+use ton_block::{Deserializable, Serializable};
 use ton_types::UInt256;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
