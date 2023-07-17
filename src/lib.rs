@@ -6,7 +6,6 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 
-use dlmalloc::GlobalDlmalloc;
 use ed25519_dalek::{Signer, Verifier};
 use nt::abi::FunctionExt;
 use nt::utils::Clock;
