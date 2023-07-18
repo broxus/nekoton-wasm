@@ -273,7 +273,7 @@ pub fn execute_local_extended(
         }));
     }
 
-    let (hash, data) =
+    let (mut hash, mut data) =
         match executor.execute_with_libs_and_params(Some(&message), &mut account, params) {
             Ok(tx) => {
                 let hash = tx.hash().handle_error()?;
@@ -291,6 +291,10 @@ pub fn execute_local_extended(
                 }
             }
         };
+
+    // add last tx lt
+    data.set_prev_trans_lt(last_trans_lt);
+    hash = data.hash().handle_error()?;
 
     let trace_js = trace.lock().unwrap();
     let trace_res_vec_js: Result<Vec<_>, _> = trace_js.iter().map(make_engine_trace).collect();
