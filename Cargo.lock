@@ -519,8 +519,8 @@ checksum = "93c0d11ac30a033511ae414355d80f70d9f29a44a49140face477117a1ee90db"
 
 [[package]]
 name = "nekoton"
-version = "0.13.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=feat/extend-models#5080890a11a059614e8b1ee3cc782704e327a763"
+version = "0.13.1"
+source = "git+https://github.com/broxus/nekoton.git?branch=master#8fed4c0ecf949d97814a4794574bd4ede9dad3bf"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -564,7 +564,7 @@ dependencies = [
 [[package]]
 name = "nekoton-abi"
 version = "0.13.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=feat/extend-models#5080890a11a059614e8b1ee3cc782704e327a763"
+source = "git+https://github.com/broxus/nekoton.git?branch=master#8fed4c0ecf949d97814a4794574bd4ede9dad3bf"
 dependencies = [
  "anyhow",
  "base64",
@@ -591,7 +591,7 @@ dependencies = [
 [[package]]
 name = "nekoton-contracts"
 version = "0.13.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=feat/extend-models#5080890a11a059614e8b1ee3cc782704e327a763"
+source = "git+https://github.com/broxus/nekoton.git?branch=master#8fed4c0ecf949d97814a4794574bd4ede9dad3bf"
 dependencies = [
  "anyhow",
  "nekoton-abi",
@@ -605,7 +605,7 @@ dependencies = [
 [[package]]
 name = "nekoton-derive"
 version = "0.13.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=feat/extend-models#5080890a11a059614e8b1ee3cc782704e327a763"
+source = "git+https://github.com/broxus/nekoton.git?branch=master#8fed4c0ecf949d97814a4794574bd4ede9dad3bf"
 dependencies = [
  "either",
  "proc-macro2",
@@ -616,7 +616,7 @@ dependencies = [
 [[package]]
 name = "nekoton-utils"
 version = "0.13.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=feat/extend-models#5080890a11a059614e8b1ee3cc782704e327a763"
+source = "git+https://github.com/broxus/nekoton.git?branch=master#8fed4c0ecf949d97814a4794574bd4ede9dad3bf"
 dependencies = [
  "anyhow",
  "base64",
@@ -1201,7 +1201,7 @@ dependencies = [
 [[package]]
 name = "ton_types"
 version = "1.10.2"
-source = "git+https://github.com/broxus/ton-labs-types.git#bb5ea019fb95def471b2e35c1d6d4f15a0d8fe61"
+source = "git+https://github.com/broxus/ton-labs-types.git#3324562d7ff1ebec66d996128573966c1b53862b"
 dependencies = [
  "anyhow",
  "base64",
