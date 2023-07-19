@@ -102,6 +102,7 @@ export type JsRawMessage = {
   bounced: boolean,
   body?: string,
   bodyHash?: string,
+  boc: string,
   init?: {
     codeHash: string
   },
@@ -427,7 +428,8 @@ pub fn make_message(data: &models::Message) -> JsValue {
         .unchecked_into()
 }
 
-pub fn make_raw_message(data: &ton_block::Message) -> JsRawMessage {
+pub fn make_raw_message(raw: ton_types::Cell) -> JsRawMessage {
+    let data = ton_block::Message::construct_from_cell(raw.clone()).expect("Shouldn't fail");
     let hash = data.hash().unwrap_or_default();
 
     #[derive(Default)]
@@ -502,6 +504,7 @@ pub fn make_raw_message(data: &ton_block::Message) -> JsRawMessage {
         .set("bounced", common.bounced)
         .set("body", body)
         .set("bodyHash", body_hash)
+        .set("boc", make_boc(&raw).expect("Shouldn't fail"))
         .set("init", init)
         .set("msgType", common.msg_type)
         .set("lt", lt)
@@ -596,8 +599,8 @@ pub fn make_raw_transaction(
     let boc = base64::encode(boc);
 
     let in_msg = {
-        if let Some(msg) = &data.in_msg.and_then(|in_msg| in_msg.read_struct().ok()) {
-            Some(make_raw_message(msg))
+        if let Some(msg) = &data.in_msg.map(|in_msg| in_msg.cell()) {
+            Some(make_raw_message(msg.clone()))
         } else {
             None
         }
@@ -606,10 +609,7 @@ pub fn make_raw_transaction(
     let mut out_messages = vec![];
     data.out_msgs
         .iterate_slices(|slice| {
-            if let Ok(message) = slice
-                .reference(0)
-                .and_then(ton_block::Message::construct_from_cell)
-            {
+            if let Ok(message) = slice.reference(0) {
                 out_messages.push(message);
             }
             Ok(true)
@@ -618,7 +618,7 @@ pub fn make_raw_transaction(
 
     let out_msgs = out_messages
         .into_iter()
-        .map(|msg| make_raw_message(&msg))
+        .map(|msg| make_raw_message(msg))
         .collect::<js_sys::Array>();
 
     let desc = if let Some(ton_block::TransactionDescr::Ordinary(desc)) =

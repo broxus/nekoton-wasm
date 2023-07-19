@@ -92,9 +92,7 @@ pub fn parse_message_base64(message: &str) -> Result<Message, JsValue> {
 
 #[wasm_bindgen(js_name = "parseMessageBase64Extended")]
 pub fn parse_message_base64_extended(message: &str) -> Result<JsRawMessage, JsValue> {
-    Ok(make_raw_message(
-        &ton_block::Message::construct_from_base64(message).handle_error()?,
-    ))
+    Ok(make_raw_message(parse_cell(message)?))
 }
 
 #[wasm_bindgen(js_name = "parseFullAccountBoc")]
