@@ -63,7 +63,6 @@ impl Transport for ProxyTransport {
             value if value == JsValue::UNDEFINED => Ok(RawContractState::NotExists),
             boc => {
                 serde_wasm_bindgen::from_value(boc).map_err(|e| anyhow::Error::msg(e.to_string()))
-
             }
         }
     }

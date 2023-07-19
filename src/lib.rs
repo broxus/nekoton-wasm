@@ -84,9 +84,7 @@ pub fn make_full_account_boc(account_stuff_boc: Option<String>) -> Result<String
 
 #[wasm_bindgen(js_name = "parseMessageBase64")]
 pub fn parse_message_base64(message: &str) -> Result<Message, JsValue> {
-    let msg = ton_block::Message::construct_from_base64(message).handle_error()?;
-    let nt_msg =
-        nt::core::models::Message::try_from((msg.hash().handle_error()?, msg)).handle_error()?;
+    let nt_msg = nt::core::models::Message::try_from(parse_cell(&message)?).handle_error()?;
     serde_wasm_bindgen::to_value(&nt_msg)
         .handle_error()
         .map(JsValue::unchecked_into)
@@ -273,28 +271,25 @@ pub fn execute_local_extended(
         }));
     }
 
-    let (mut hash, mut data) =
-        match executor.execute_with_libs_and_params(Some(&message), &mut account, params) {
-            Ok(tx) => {
-                let hash = tx.hash().handle_error()?;
-                (hash, tx)
-            }
-            Err(e) => {
-                return match e.downcast_ref::<ton_executor::ExecutorError>() {
-                    Some(ton_executor::ExecutorError::NoAcceptError(code, _)) => {
-                        Ok(ObjectBuilder::new()
-                            .set("exitCode", *code)
-                            .build()
-                            .unchecked_into())
-                    }
-                    _ => Err(e).handle_error(),
+    let mut data = match executor.execute_with_libs_and_params(Some(&message), &mut account, params)
+    {
+        Ok(tx) => tx,
+        Err(e) => {
+            return match e.downcast_ref::<ton_executor::ExecutorError>() {
+                Some(ton_executor::ExecutorError::NoAcceptError(code, _)) => {
+                    Ok(ObjectBuilder::new()
+                        .set("exitCode", *code)
+                        .build()
+                        .unchecked_into())
                 }
+                _ => Err(e).handle_error(),
             }
-        };
+        }
+    };
 
     // add last tx lt
     data.set_prev_trans_lt(last_trans_lt);
-    hash = data.hash().handle_error()?;
+    let hash = data.hash().handle_error()?;
 
     let trace_js = trace.lock().unwrap();
     let trace_res_vec_js: Result<Vec<_>, _> = trace_js.iter().map(make_engine_trace).collect();
