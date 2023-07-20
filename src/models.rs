@@ -2,7 +2,11 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use nt::core::models;
-use ton_block::{Deserializable, Serializable};
+use nt::core::models::TransactionError;
+use ton_block::{
+    Deserializable, GetRepresentationHash, MsgAddressExt, MsgAddressInt, Serializable,
+    TrBouncePhase,
+};
 use ton_types::UInt256;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -54,6 +58,7 @@ export type Message = {
     bounced: boolean,
     body?: string,
     bodyHash?: string,
+    boc: string,
 };
 
 export type PendingTransaction = {
@@ -84,7 +89,102 @@ export type Transaction = {
     totalFees: string,
     inMessage: Message,
     outMessages: Message[],
+    boc: string
 };
+
+export type MessageType = 'IntMsg' | 'ExtIn' | 'ExtOut';
+
+export type JsRawMessage = {
+  hash: string,
+  src?: string,
+  dst?: string,
+  value: string,
+  bounce: boolean,
+  bounced: boolean,
+  body?: string,
+  bodyHash?: string,
+  boc: string,
+  init?: {
+    codeHash: string
+  },
+  msgType: MessageType,
+  lt?: number
+};
+
+export type TransactionComputeType = 'vm' | 'skipped';
+export type TransactionBounceStatus = 'noFunds' | 'ok' | 'negFunds';
+export type TransactionStorageStatusChange = 'Unchanged' | 'Frozen' | 'Deleted';
+export type TrComputeSkippedReason = 'NoState' | 'BadState' | 'NoGas' | 'Suspended';
+
+export type TrComputeSkipped = {
+  status: 'skipped',
+  reason: TrComputeSkippedReason
+}
+export type TrComputeVm = {
+  status: 'vm',
+  success: boolean,
+  exitCode: number,
+  msgStateUsed: boolean,
+  accountActivated: boolean,
+  gasFees: number,
+  gasUsed: number,
+  gasLimit: number,
+  gasCredit: number,
+  mode: number,
+  exitArg: undefined | number,
+  vmSteps: number
+}
+export type TrAction = {
+  resultCode: number,
+  success: boolean,
+  valid: boolean,
+  noFunds: boolean,
+  totalFwdFees: number,
+  totalActionFees: number,
+  resultArg: number,
+  totActions: number,
+  specActions: number,
+  skippedActions: number,
+  msgsCreated: number
+}
+
+export type JsRawTransaction = {
+  lt: bigint,
+  hash: string,
+  prevTransLt: bigint,
+  prevTransHash: string,
+  now: number,
+  accountAddr: string,
+  description: {
+    compute: TrComputeVm | TrComputeSkipped,
+    aborted: boolean,
+    destroyed: boolean,
+    bounce: undefined |
+      {
+        status: 'ok'
+        msgFees: number,
+        fwdFees: number
+      } | {
+        status: 'noFunds'
+        reqFwdFees: number
+      } | {
+        status: 'negFunds'
+      },
+    storage: {
+      storageFeesCollected: number,
+      storageFeesDue: undefined | number,
+      statusChange: TransactionStorageStatusChange
+    },
+    action: TrAction | undefined,
+    creditFirst: boolean
+  },
+  origStatus: AccountStatus,
+  endStatus: AccountStatus,
+  totalFees: number,
+  inMessage: JsRawMessage,
+  outMessages: JsRawMessage[],
+  boc: string,
+}
 
 export type TransactionsBatchType = 'old' | 'new';
 
@@ -92,6 +192,14 @@ export type TransactionsBatchInfo = {
     minLt: string,
     maxLt: string,
     batchType: TransactionsBatchType,
+};
+
+export type ReliableBehaviorType = 'BlockWalking' | 'IntensivePolling';
+
+export type TransportInfo = {
+    max_transactions_per_fetch: number;
+    reliable_behavior: ReliableBehaviorType;
+    has_key_blocks: boolean;
 };
 
 export type StateInit = {
@@ -131,6 +239,23 @@ export type DecodedTransactionEvents = Array<DecodedEvent>;
 export type TransactionExecutorOutput =
     | { exitCode: number }
     | { account: string, transaction: Transaction };
+
+export type TransactionExecutorExtendedOutput =
+    | { exitCode: number }
+    | { account: string, transaction: JsRawTransaction, trace: EngineTraceInfo[] };
+
+export type EngineTraceInfo = {
+  infoType: string,
+  step: number,
+  cmdStr: string,
+  stack: string[],
+  gasUsed: string,
+  gasCmd: string,
+  cmdCodeRemBits: string,
+  cmdCodeHex: string,
+  cmdCodeCellHash: string,
+  cmdCodeOffset: string,
+}
 
 export type ExecutionOutput = {
     output?: TokensObject,
@@ -191,6 +316,13 @@ export type FullContractState = {
     isDeployed: boolean;
     codeHash?: string;
     boc: string;
+};
+
+export type RawContractState = {
+    account: string;
+    lastTransactionId: LastTransactionId;
+    timings: GenTimings;
+    type: string;
 };
 
 export type TransactionTree = {
@@ -292,6 +424,98 @@ pub fn make_message(data: &models::Message) -> JsValue {
         .set("bounced", data.bounced)
         .set("body", body)
         .set("bodyHash", body_hash)
+        .set("boc", make_boc(&data.raw).expect("Shouldn't fail"))
+        .build()
+        .unchecked_into()
+}
+
+pub fn make_raw_message(raw: ton_types::Cell) -> JsRawMessage {
+    let data = ton_block::Message::construct_from_cell(raw.clone()).expect("Shouldn't fail");
+    let hash = data.hash().unwrap_or_default();
+
+    #[derive(Default)]
+    struct MessageCommon {
+        pub src: Option<MsgAddressInt>,
+        pub dst: Option<String>,
+        pub value: u64,
+        pub bounce: bool,
+        pub bounced: bool,
+        pub msg_type: String,
+    }
+
+    let common = match data.header() {
+        ton_block::CommonMsgInfo::IntMsgInfo(header) => MessageCommon {
+            src: match &header.src {
+                ton_block::MsgAddressIntOrNone::Some(addr) => Some(addr.clone()),
+                ton_block::MsgAddressIntOrNone::None => None,
+            },
+            dst: Some(header.dst.to_string()),
+            value: header.value.grams.as_u128() as u64,
+            bounce: header.bounce,
+            bounced: header.bounced,
+            msg_type: "IntMsg".to_string(),
+        },
+        ton_block::CommonMsgInfo::ExtInMsgInfo(header) => MessageCommon {
+            src: None,
+            dst: Some(header.dst.to_string()),
+            msg_type: "ExtIn".to_string(),
+            ..Default::default()
+        },
+        ton_block::CommonMsgInfo::ExtOutMsgInfo(header) => {
+            let dst = match header.dst.clone() {
+                MsgAddressExt::AddrNone => None,
+                MsgAddressExt::AddrExtern(addr) => Some(addr.external_address.as_hex_string()),
+            };
+            MessageCommon {
+                src: match &header.src {
+                    ton_block::MsgAddressIntOrNone::Some(addr) => Some(addr.clone()),
+                    ton_block::MsgAddressIntOrNone::None => None,
+                },
+                msg_type: "ExtOut".to_string(),
+                dst,
+                ..Default::default()
+            }
+        }
+    };
+
+    let (body, body_hash) = if let Some(body) = &data.body() {
+        let data = body.clone().into_cell();
+        (
+            Some(make_boc(&data).expect("Shouldn't fail")),
+            Some(data.repr_hash().to_hex_string()),
+        )
+    } else {
+        (None, None)
+    };
+
+    let init = if let Some(init) = data.state_init() {
+        let state_init_code_hash = init
+            .code
+            .as_ref()
+            .map(|code| code.repr_hash().to_hex_string());
+        Some(
+            ObjectBuilder::new()
+                .set("code_hash", state_init_code_hash)
+                .build(),
+        )
+    } else {
+        None
+    };
+    let lt = data.lt();
+
+    ObjectBuilder::new()
+        .set("hash", hash.to_hex_string())
+        .set("src", common.src.as_ref().map(ToString::to_string))
+        .set("dst", common.dst)
+        .set("value", common.value.to_string())
+        .set("bounce", common.bounce)
+        .set("bounced", common.bounced)
+        .set("body", body)
+        .set("bodyHash", body_hash)
+        .set("boc", make_boc(&raw).expect("Shouldn't fail"))
+        .set("init", init)
+        .set("msgType", common.msg_type)
+        .set("lt", lt)
         .build()
         .unchecked_into()
 }
@@ -364,6 +588,169 @@ pub fn make_transactions_list(
         .unchecked_into()
 }
 
+pub fn make_raw_transaction(
+    raw_transaction: nt::transport::models::RawTransaction,
+) -> JsRawTransaction {
+    let nt::transport::models::RawTransaction { hash, data } = raw_transaction;
+
+    let boc = data
+        .write_to_new_cell()
+        .map_err(|_| TransactionError::InvalidStructure)
+        .unwrap();
+    let boc = boc
+        .into_cell()
+        .map_err(|_| TransactionError::InvalidStructure)
+        .unwrap();
+    let boc = ton_types::serialize_toc(&boc)
+        .map_err(|_| TransactionError::InvalidStructure)
+        .unwrap();
+    let boc = base64::encode(boc);
+
+    let in_msg = {
+        if let Some(msg) = &data.in_msg.map(|in_msg| in_msg.cell()) {
+            Some(make_raw_message(msg.clone()))
+        } else {
+            None
+        }
+    };
+
+    let mut out_messages = vec![];
+    data.out_msgs
+        .iterate_slices(|slice| {
+            if let Ok(message) = slice.reference(0) {
+                out_messages.push(message);
+            }
+            Ok(true)
+        })
+        .unwrap();
+
+    let out_msgs = out_messages
+        .into_iter()
+        .map(|msg| make_raw_message(msg))
+        .collect::<js_sys::Array>();
+
+    let desc = if let Some(ton_block::TransactionDescr::Ordinary(desc)) =
+        data.description.read_struct().ok()
+    {
+        Some(make_raw_description(desc))
+    } else {
+        None
+    };
+
+    ObjectBuilder::new()
+        .set("lt", data.lt)
+        .set("hash", hex::encode(hash.as_slice()))
+        .set("prevTransLt", data.prev_trans_lt)
+        .set(
+            "prevTransHash",
+            hex::encode(data.prev_trans_hash.as_slice()),
+        )
+        .set("now", data.now)
+        .set("accountAddr", data.account_addr.as_hex_string())
+        .set("description", desc)
+        .set("origStatus", make_account_status(data.orig_status.into()))
+        .set("endStatus", make_account_status(data.end_status.into()))
+        .set("totalFees", data.total_fees.grams.as_u128().to_string())
+        .set("inMessage", in_msg)
+        .set("outMessages", out_msgs)
+        .set("boc", boc)
+        .build()
+        .unchecked_into()
+}
+
+pub fn make_raw_description(desc: ton_block::TransactionDescrOrdinary) -> JsValue {
+    let compute_ph = match &desc.compute_ph {
+        ton_block::TrComputePhase::Vm(vm) => ObjectBuilder::new()
+            .set("status", "vm")
+            .set("success", vm.success)
+            .set("exitCode", vm.exit_code)
+            .set("msgStateUsed", vm.msg_state_used)
+            .set("accountActivated", vm.account_activated)
+            .set("gasFees", vm.gas_fees.as_u128().to_string())
+            .set("gasUsed", vm.gas_used.to_string())
+            .set("gasLimit", vm.gas_limit.to_string())
+            .set("gasCredit", vm.gas_credit.unwrap_or_default().to_string())
+            .set("mode", vm.mode)
+            .set("exitArg", vm.exit_arg)
+            .set("vmSteps", vm.vm_steps)
+            .build(),
+        ton_block::TrComputePhase::Skipped(s) => ObjectBuilder::new()
+            .set("status", "skipped")
+            .set("reason", format!("{:#?}", s.reason))
+            .build(),
+    };
+
+    let aborted = desc.aborted;
+    let bounce = if let Some(b) = desc.bounce {
+        Some(match b {
+            TrBouncePhase::Negfunds => ObjectBuilder::new().set("status", "negFunds").build(),
+            TrBouncePhase::Nofunds(f) => ObjectBuilder::new()
+                .set("status", "noFunds")
+                .set("reqFwdFees", f.req_fwd_fees.as_u128().to_string())
+                .build(),
+            TrBouncePhase::Ok(f) => ObjectBuilder::new()
+                .set("status", "ok")
+                .set("msgFees", f.msg_fees.as_u128().to_string())
+                .set("fwdFees", f.fwd_fees.as_u128().to_string())
+                .build(),
+        })
+    } else {
+        None
+    };
+    let storage = if let Some(b) = desc.storage_ph {
+        Some(
+            ObjectBuilder::new()
+                .set("storageFeesCollected", b.storage_fees_collected.to_string())
+                .set(
+                    "storageFeesDue",
+                    b.storage_fees_due.map(|v| v.as_u128().to_string()),
+                )
+                .set("statusChange", format!("{:#?}", b.status_change))
+                .build(),
+        )
+    } else {
+        None
+    };
+    let action = if let Some(b) = desc.action {
+        Some(
+            ObjectBuilder::new()
+                .set("resultCode", b.result_code)
+                .set("success", b.success)
+                .set("valid", b.valid)
+                .set("noFunds", b.no_funds)
+                .set(
+                    "totalFwdFees",
+                    b.total_fwd_fees.unwrap_or_default().as_u128().to_string(),
+                )
+                .set(
+                    "totalActionFees",
+                    b.total_action_fees
+                        .unwrap_or_default()
+                        .as_u128()
+                        .to_string(),
+                )
+                .set("resultArg", b.result_arg)
+                .set("totActions", b.tot_actions)
+                .set("specActions", b.spec_actions)
+                .set("skippedActions", b.skipped_actions)
+                .set("msgsCreated", b.msgs_created)
+                .build(),
+        )
+    } else {
+        None
+    };
+    ObjectBuilder::new()
+        .set("compute", compute_ph)
+        .set("aborted", aborted)
+        .set("destroyed", desc.destroyed)
+        .set("bounce", bounce)
+        .set("storage", storage)
+        .set("action", action)
+        .set("creditFirst", desc.credit_first)
+        .build()
+        .unchecked_into()
+}
+
 pub fn make_transaction(data: models::Transaction) -> Transaction {
     make_transaction_ext(data, None)
 }
@@ -408,6 +795,7 @@ pub fn make_transaction_ext(
         .set("totalFees", data.total_fees.to_string())
         .set("inMessage", in_msg)
         .set("outMessages", out_msgs)
+        .set("boc", make_boc(&data.raw).expect("Shouldn't fail"))
         .build()
         .unchecked_into()
 }
@@ -651,6 +1039,63 @@ pub fn make_boc_with_hash(cell: ton_types::Cell) -> Result<BocWithHash, JsValue>
         .unchecked_into())
 }
 
+#[derive(Clone, Default)]
+pub struct EngineTraceInfoData {
+    pub info_type: String,
+    pub step: u32, // number of executable command
+    pub cmd_str: String,
+    pub stack: Vec<String>,
+    pub gas_used: i64,
+    pub gas_cmd: i64,
+    pub cmd_code_rem_bits: u32,
+    pub cmd_code_hex: String,
+    pub cmd_code_cell_hash: String,
+    pub cmd_code_offset: u32,
+}
+
+impl EngineTraceInfoData {
+    pub fn from(info: &ton_vm::executor::EngineTraceInfo) -> Self {
+        let cmd_code_rem_bits = info.cmd_code.remaining_bits() as u32;
+        let cmd_code_hex = info.cmd_code.to_hex_string();
+        let cmd_code_cell_hash = info.cmd_code.cell().repr_hash().to_hex_string();
+        let cmd_code_offset = info.cmd_code.pos() as u32;
+
+        Self {
+            info_type: format!("{:#?}", info.info_type),
+            step: info.step,
+            cmd_str: info.cmd_str.clone(),
+            stack: info.stack.storage.iter().map(|s| s.to_string()).collect(),
+            gas_used: info.gas_used,
+            gas_cmd: info.gas_cmd,
+            cmd_code_rem_bits,
+            cmd_code_hex,
+            cmd_code_cell_hash,
+            cmd_code_offset,
+        }
+    }
+}
+
+pub fn make_engine_trace(engine_trace: &EngineTraceInfoData) -> Result<EngineTraceInfo, JsValue> {
+    let stack = engine_trace
+        .stack
+        .iter()
+        .map(|s| JsValue::from(s))
+        .collect::<js_sys::Array>();
+    Ok(ObjectBuilder::new()
+        .set("infoType", engine_trace.info_type.clone())
+        .set("step", engine_trace.step)
+        .set("cmdStr", engine_trace.cmd_str.clone())
+        .set("stack", stack)
+        .set("gasUsed", engine_trace.gas_used.to_string())
+        .set("gasCmd", engine_trace.gas_cmd.to_string())
+        .set("cmdCodeRemBits", engine_trace.cmd_code_rem_bits.to_string())
+        .set("cmdCodeHex", engine_trace.cmd_code_hex.clone())
+        .set("cmdCodeCellHash", engine_trace.cmd_code_cell_hash.clone())
+        .set("cmdCodeOffset", engine_trace.cmd_code_offset.to_string())
+        .build()
+        .unchecked_into())
+}
+
 pub fn serialize_into_boc_with_hash(data: &dyn Serializable) -> Result<BocWithHash, JsValue> {
     let cell = data.serialize().handle_error()?;
     make_boc_with_hash(cell)
@@ -661,6 +1106,9 @@ extern "C" {
     #[wasm_bindgen(typescript_type = "TransactionId")]
     pub type TransactionId;
 
+    #[wasm_bindgen(typescript_type = "TransportInfo")]
+    pub type TransportInfo;
+
     #[wasm_bindgen(typescript_type = "GenTimings")]
     pub type GenTimings;
 
@@ -669,6 +1117,9 @@ extern "C" {
 
     #[wasm_bindgen(typescript_type = "ContractState")]
     pub type ContractState;
+
+    #[wasm_bindgen(typescript_type = "RawContractState")]
+    pub type RawContractState;
 
     #[wasm_bindgen(typescript_type = "AccountStatus")]
     pub type AccountStatus;
@@ -745,6 +1196,9 @@ extern "C" {
     #[wasm_bindgen(typescript_type = "TransactionExecutorOutput")]
     pub type TransactionExecutorOutput;
 
+    #[wasm_bindgen(typescript_type = "TransactionExecutorExtendedOutput")]
+    pub type TransactionExecutorExtendedOutput;
+
     #[wasm_bindgen(typescript_type = "ExecutionOutput")]
     pub type ExecutionOutput;
 
@@ -784,6 +1238,15 @@ extern "C" {
     #[wasm_bindgen(typescript_type = "ExtendedSignature")]
     pub type ExtendedSignature;
 
+    #[wasm_bindgen(typescript_type = "EngineTraceInfo")]
+    pub type EngineTraceInfo;
+
     #[wasm_bindgen(typescript_type = "TransactionTree")]
     pub type JsTransactionTree;
+
+    #[wasm_bindgen(typescript_type = "JsRawTransaction")]
+    pub type JsRawTransaction;
+
+    #[wasm_bindgen(typescript_type = "JsRawMessage")]
+    pub type JsRawMessage;
 }

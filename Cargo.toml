@@ -31,7 +31,6 @@ js-sys = "0.3"
 num-bigint = "0.4"
 num-traits = "0.2"
 rand = { version = "0.8", features = ["getrandom"] }
-serde = "1.0"
 sha2 = "0.9.9"
 thiserror = "1.0"
 tokio = { version = "1", features = ["sync"] }
@@ -45,12 +44,14 @@ ton_abi = { git = "https://github.com/broxus/ton-labs-abi.git" }
 ton_block = { git = "https://github.com/broxus/ton-labs-block.git", features = ["venom"] }
 ton_types = { git = "https://github.com/broxus/ton-labs-types.git" }
 ton_executor = { git = "https://github.com/broxus/ton-labs-executor.git" }
+ton_vm = { git = "https://github.com/broxus/ton-labs-vm.git"}
+serde-wasm-bindgen = "0.5.0"
 
 [dependencies.nt]
 package = "nekoton"
 git = "https://github.com/broxus/nekoton.git"
 branch = "master"
-features = ["web", "gql_transport", "jrpc_transport"]
+features = ["web", "gql_transport", "jrpc_transport", "extended_models"]
 
 [patch.crates-io]
 hmac-drbg = { git = "https://github.com/Rexagon/rust-hmac-drbg" }
