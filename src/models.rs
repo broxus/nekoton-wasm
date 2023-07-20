@@ -4,7 +4,8 @@ use std::convert::TryFrom;
 use nt::core::models;
 use nt::core::models::TransactionError;
 use ton_block::{
-    Deserializable, GetRepresentationHash, MsgAddressInt, Serializable, TrBouncePhase,
+    Deserializable, GetRepresentationHash, MsgAddressExt, MsgAddressInt, Serializable,
+    TrBouncePhase,
 };
 use ton_types::UInt256;
 use wasm_bindgen::prelude::*;
@@ -468,14 +469,23 @@ pub fn make_raw_message(raw: ton_types::Cell) -> JsRawMessage {
             msg_type: "ExtIn".to_string(),
             ..Default::default()
         },
-        ton_block::CommonMsgInfo::ExtOutMsgInfo(header) => MessageCommon {
-            src: match &header.src {
-                ton_block::MsgAddressIntOrNone::Some(addr) => Some(addr.clone()),
-                ton_block::MsgAddressIntOrNone::None => None,
-            },
-            msg_type: "ExtOut".to_string(),
-            ..Default::default()
-        },
+        ton_block::CommonMsgInfo::ExtOutMsgInfo(header) => {
+            let dst = match header.dst.clone() {
+                MsgAddressExt::AddrNone => None,
+                MsgAddressExt::AddrExtern(mut addr) => {
+                    MsgAddressInt::construct_from(&mut addr.external_address).ok()
+                }
+            };
+            MessageCommon {
+                src: match &header.src {
+                    ton_block::MsgAddressIntOrNone::Some(addr) => Some(addr.clone()),
+                    ton_block::MsgAddressIntOrNone::None => None,
+                },
+                msg_type: "ExtOut".to_string(),
+                dst,
+                ..Default::default()
+            }
+        }
     };
 
     let (body, body_hash) = if let Some(body) = &data.body() {
