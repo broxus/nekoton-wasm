@@ -472,12 +472,7 @@ pub fn make_raw_message(raw: ton_types::Cell) -> JsRawMessage {
         ton_block::CommonMsgInfo::ExtOutMsgInfo(header) => {
             let dst = match header.dst.clone() {
                 MsgAddressExt::AddrNone => None,
-                MsgAddressExt::AddrExtern(addr) => Some(
-                    addr.external_address
-                        .as_hex_string()
-                        .drain(..addr.len.as_u32() as usize)
-                        .collect(),
-                ),
+                MsgAddressExt::AddrExtern(addr) => Some(addr.external_address.as_hex_string()),
             };
             MessageCommon {
                 src: match &header.src {
