@@ -444,7 +444,7 @@ pub fn make_raw_message(raw: ton_types::Cell) -> JsRawMessage {
     #[derive(Default)]
     struct MessageCommon {
         pub src: Option<MsgAddressInt>,
-        pub dst: Option<MsgAddressInt>,
+        pub dst: Option<String>,
         pub value: u64,
         pub bounce: bool,
         pub bounced: bool,
@@ -457,7 +457,7 @@ pub fn make_raw_message(raw: ton_types::Cell) -> JsRawMessage {
                 ton_block::MsgAddressIntOrNone::Some(addr) => Some(addr.clone()),
                 ton_block::MsgAddressIntOrNone::None => None,
             },
-            dst: Some(header.dst.clone()),
+            dst: Some(header.dst.to_string()),
             value: header.value.grams.as_u128() as u64,
             bounce: header.bounce,
             bounced: header.bounced,
@@ -465,16 +465,19 @@ pub fn make_raw_message(raw: ton_types::Cell) -> JsRawMessage {
         },
         ton_block::CommonMsgInfo::ExtInMsgInfo(header) => MessageCommon {
             src: None,
-            dst: Some(header.dst.clone()),
+            dst: Some(header.dst.to_string()),
             msg_type: "ExtIn".to_string(),
             ..Default::default()
         },
         ton_block::CommonMsgInfo::ExtOutMsgInfo(header) => {
             let dst = match header.dst.clone() {
                 MsgAddressExt::AddrNone => None,
-                MsgAddressExt::AddrExtern(mut addr) => {
-                    MsgAddressInt::construct_from(&mut addr.external_address).ok()
-                }
+                MsgAddressExt::AddrExtern(addr) => Some(
+                    addr.external_address
+                        .as_hex_string()
+                        .drain(..addr.len.as_u32() as usize)
+                        .collect(),
+                ),
             };
             MessageCommon {
                 src: match &header.src {
@@ -516,7 +519,7 @@ pub fn make_raw_message(raw: ton_types::Cell) -> JsRawMessage {
     ObjectBuilder::new()
         .set("hash", hash.to_hex_string())
         .set("src", common.src.as_ref().map(ToString::to_string))
-        .set("dst", common.dst.as_ref().map(ToString::to_string))
+        .set("dst", common.dst)
         .set("value", common.value.to_string())
         .set("bounce", common.bounce)
         .set("bounced", common.bounced)
