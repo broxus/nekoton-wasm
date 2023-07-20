@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use nt::core::models;
+
 use ton_block::{Deserializable, Serializable};
 use ton_types::UInt256;
 use wasm_bindgen::prelude::*;
@@ -54,6 +55,7 @@ export type Message = {
     bounced: boolean,
     body?: string,
     bodyHash?: string,
+    boc: string,
 };
 
 export type PendingTransaction = {
@@ -84,6 +86,7 @@ export type Transaction = {
     totalFees: string,
     inMessage: Message,
     outMessages: Message[],
+    boc: string
 };
 
 export type TransactionsBatchType = 'old' | 'new';
@@ -135,6 +138,14 @@ export type TransactionExecutorOutput =
 export type ExecutionOutput = {
     output?: TokensObject,
     code: number,
+};
+
+export type ReliableBehaviorType = 'BlockWalking' | 'IntensivePolling';
+
+export type TransportInfo = {
+    max_transactions_per_fetch: number;
+    reliable_behavior: ReliableBehaviorType;
+    has_key_blocks: boolean;
 };
 
 export type MethodName = undefined | string | string[];
@@ -193,11 +204,17 @@ export type FullContractState = {
     boc: string;
 };
 
+export type RawContractState = {
+    account: string;
+    lastTransactionId: LastTransactionId;
+    timings: GenTimings;
+    type: string;
+};
+
 export type TransactionTree = {
     root: Transaction,
     children: TransactionTree[]
 };
-
 "#;
 
 // TODO: add zerostate hash
@@ -292,6 +309,7 @@ pub fn make_message(data: &models::Message) -> JsValue {
         .set("bounced", data.bounced)
         .set("body", body)
         .set("bodyHash", body_hash)
+        .set("boc", make_boc(&data.raw).expect("Shouldn't fail"))
         .build()
         .unchecked_into()
 }
@@ -408,6 +426,7 @@ pub fn make_transaction_ext(
         .set("totalFees", data.total_fees.to_string())
         .set("inMessage", in_msg)
         .set("outMessages", out_msgs)
+        .set("boc", make_boc(&data.raw).expect("Shouldn't fail"))
         .build()
         .unchecked_into()
 }
@@ -661,6 +680,9 @@ extern "C" {
     #[wasm_bindgen(typescript_type = "TransactionId")]
     pub type TransactionId;
 
+    #[wasm_bindgen(typescript_type = "TransportInfo")]
+    pub type TransportInfo;
+
     #[wasm_bindgen(typescript_type = "GenTimings")]
     pub type GenTimings;
 
@@ -669,6 +691,9 @@ extern "C" {
 
     #[wasm_bindgen(typescript_type = "ContractState")]
     pub type ContractState;
+
+    #[wasm_bindgen(typescript_type = "RawContractState")]
+    pub type RawContractState;
 
     #[wasm_bindgen(typescript_type = "AccountStatus")]
     pub type AccountStatus;

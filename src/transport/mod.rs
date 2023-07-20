@@ -11,11 +11,13 @@ use crate::utils::*;
 
 pub mod gql;
 pub mod jrpc;
+pub mod proxy;
 
 #[derive(Clone)]
 pub enum TransportHandle {
     GraphQl(Arc<nt::transport::gql::GqlTransport>),
     Jrpc(Arc<nt::transport::jrpc::JrpcTransport>),
+    Proxy(Arc<proxy::ProxyTransport>),
 }
 
 impl TransportHandle {
@@ -23,6 +25,7 @@ impl TransportHandle {
         match self {
             Self::GraphQl(transport) => transport.get_block(block_id).await.handle_error(),
             Self::Jrpc(_) => Err(TransportError::MethodNotSupported).handle_error(),
+            Self::Proxy(_) => Err(TransportError::MethodNotSupported).handle_error(),
         }
     }
 }
@@ -32,6 +35,7 @@ impl<'a> AsRef<dyn nt::transport::Transport + 'a> for TransportHandle {
         match self {
             Self::GraphQl(transport) => transport.as_ref(),
             Self::Jrpc(transport) => transport.as_ref(),
+            Self::Proxy(transport) => transport.as_ref(),
         }
     }
 }
@@ -41,6 +45,7 @@ impl From<TransportHandle> for Arc<dyn nt::transport::Transport> {
         match handle {
             TransportHandle::GraphQl(transport) => transport,
             TransportHandle::Jrpc(transport) => transport,
+            TransportHandle::Proxy(transport) => transport,
         }
     }
 }
@@ -70,6 +75,15 @@ impl Transport {
         Self {
             handle: TransportHandle::Jrpc(transport),
             clock: jrpc.clock.clone(),
+        }
+    }
+
+    #[wasm_bindgen(js_name = "fromProxyConnection")]
+    pub fn from_proxy_connection(proxy: &proxy::ProxyConnection) -> Transport {
+        let transport = Arc::new(proxy::ProxyTransport::new(proxy.inner.clone()));
+        Self {
+            handle: TransportHandle::Proxy(transport),
+            clock: proxy.clock.clone(),
         }
     }
 

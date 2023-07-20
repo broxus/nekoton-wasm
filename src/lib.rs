@@ -157,7 +157,7 @@ pub fn execute_local(
     let params = ton_executor::ExecuteParams {
         block_unixtime: utime,
         block_lt: last_trans_lt + 10,
-        last_tr_lt: Arc::new(AtomicU64::new(last_trans_lt)),
+        last_tr_lt: Arc::new(AtomicU64::new(last_trans_lt + 1)),
         behavior_modifiers: Some(executor.behavior_modifiers()),
         ..Default::default()
     };
