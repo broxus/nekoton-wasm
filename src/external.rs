@@ -16,7 +16,7 @@ impl GqlConnectionImpl {
     }
 }
 
-#[async_trait::async_trait]
+#[async_trait::async_trait(?Send)]
 impl nt::external::GqlConnection for GqlConnectionImpl {
     fn is_local(&self) -> bool {
         self.sender.is_local()
@@ -151,7 +151,7 @@ impl JrpcQuery {
     }
 }
 
-#[async_trait::async_trait]
+#[async_trait::async_trait(?Send)]
 impl nt::external::JrpcConnection for JrpcConnector {
     async fn post(&self, req: nt::external::JrpcRequest) -> Result<String> {
         let (tx, rx) = oneshot::channel();
@@ -167,15 +167,15 @@ impl nt::external::JrpcConnection for JrpcConnector {
 const PROXY_TRANSPORT: &str = r#"
 export interface IProxyConnector {
   info(): TransportInfo;
-  sendMessage(message: string): void;
-  getContractState(address: string): RawContractState | undefined;
-  getAccountsByCodeHash(codeHash: string, limit: number, continuation?: string): string[];
-  getTransactions(address: string, fromLt: string, count: number): string[];
-  getTransaction(id: string): string | undefined;
-  getDstTransaction(msg_hash: string): string | undefined;
-  getLatestKeyBlock(): string;
-  getCapabilities(clock_offset_as_sec: string, clock_offset_as_ms: string): string[];
-  getBlockchainConfig(): string[];
+  sendMessage(message: string): Promise<void>;
+  getContractState(address: string): Promise<string>;
+  getAccountsByCodeHash(codeHash: string, limit: number, continuation?: string): Promise<string[]>;
+  getTransactions(address: string, fromLt: string, count: number): Promise<string[]>;
+  getTransaction(id: string): Promise<string | undefined>;
+  getDstTransaction(msg_hash: string): Promise<string | undefined>;
+  getLatestKeyBlock(): Promise<string>;
+  getCapabilities(now_ms: string): Promise<NetworkCapabilities>;
+  getBlockchainConfig(now_ms: string): Promise<BlockchainConfig>;
 }
 "#;
 
@@ -184,49 +184,55 @@ extern "C" {
     #[wasm_bindgen(typescript_type = "IProxyConnector")]
     pub type IProxyConnector;
 
-    #[wasm_bindgen(method)]
-    pub fn info(this: &IProxyConnector) -> JsValue;
+    #[wasm_bindgen(method, catch)]
+    pub fn info(this: &IProxyConnector) -> Result<JsValue, JsValue>;
 
-    #[wasm_bindgen(method, js_name = "sendMessage")]
-    pub fn send_message(this: &IProxyConnector, message: &str);
+    #[wasm_bindgen(method, catch, js_name = "sendMessage")]
+    pub async fn send_message(this: &IProxyConnector, message: &str) -> Result<(), JsValue>;
 
-    #[wasm_bindgen(method, js_name = "getContractState")]
-    pub fn get_contract_state(this: &IProxyConnector, address: &str) -> JsValue;
+    #[wasm_bindgen(method, catch, js_name = "getContractState")]
+    pub async fn get_contract_state(
+        this: &IProxyConnector,
+        address: &str,
+    ) -> Result<JsValue, JsValue>;
 
-    #[wasm_bindgen(method, js_name = "getAccountsByCodeHash")]
-    pub fn get_accounts_by_code_hash(
+    #[wasm_bindgen(method, catch, js_name = "getAccountsByCodeHash")]
+    pub async fn get_accounts_by_code_hash(
         this: &IProxyConnector,
         code_hash: &str,
         limit: u8,
         continuation: Option<String>,
-    ) -> JsValue;
+    ) -> Result<JsValue, JsValue>;
 
-    #[wasm_bindgen(method, js_name = "getTransactions")]
-    pub fn get_transactions(
+    #[wasm_bindgen(method, catch, js_name = "getTransactions")]
+    pub async fn get_transactions(
         this: &IProxyConnector,
         address: &str,
         from_lt: &str,
         count: u8,
-    ) -> JsValue;
+    ) -> Result<JsValue, JsValue>;
 
-    #[wasm_bindgen(method, js_name = "getTransaction")]
-    pub fn get_transaction(this: &IProxyConnector, id: &str) -> JsValue;
+    #[wasm_bindgen(method, catch, js_name = "getTransaction")]
+    pub async fn get_transaction(this: &IProxyConnector, id: &str) -> Result<JsValue, JsValue>;
 
-    #[wasm_bindgen(method, js_name = "getDstTransaction")]
-    pub fn get_dst_transaction(this: &IProxyConnector, message_hash: &str) -> JsValue;
-
-    #[wasm_bindgen(method, js_name = "getLatestKeyBlock")]
-    pub fn get_latest_key_block(this: &IProxyConnector) -> JsValue;
-
-    #[wasm_bindgen(method, js_name = "getCapabilities")]
-    pub fn get_capabilities(
+    #[wasm_bindgen(method, catch, js_name = "getDstTransaction")]
+    pub async fn get_dst_transaction(
         this: &IProxyConnector,
-        clock_offset_as_sec: &str,
-        clock_offset_as_ms: &str,
-    ) -> JsValue;
+        message_hash: &str,
+    ) -> Result<JsValue, JsValue>;
 
-    #[wasm_bindgen(method, js_name = "getBlockchainConfig")]
-    pub fn get_blockchain_config(this: &IProxyConnector) -> JsValue;
+    #[wasm_bindgen(method, catch, js_name = "getLatestKeyBlock")]
+    pub async fn get_latest_key_block(this: &IProxyConnector) -> Result<JsValue, JsValue>;
+
+    #[wasm_bindgen(method, catch, js_name = "getCapabilities")]
+    pub async fn get_capabilities(this: &IProxyConnector, now_ms: &str)
+        -> Result<JsValue, JsValue>;
+
+    #[wasm_bindgen(method, catch, js_name = "getBlockchainConfig")]
+    pub async fn get_blockchain_config(
+        this: &IProxyConnector,
+        now_ms: &str,
+    ) -> Result<JsValue, JsValue>;
 }
 
 unsafe impl Send for IProxyConnector {}

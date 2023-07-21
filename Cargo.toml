@@ -1,6 +1,6 @@
 [package]
 name = "nekoton-wasm"
-version = "1.1.9"
+version = "1.2.0"
 edition = "2021"
 authors = ["Ivan Kalinin <i.kalinin@dexpa.io>"]
 repository = "https://github.com/broxus/nekoton-wasm"
@@ -49,7 +49,7 @@ ton_executor = { git = "https://github.com/broxus/ton-labs-executor.git" }
 package = "nekoton"
 git = "https://github.com/broxus/nekoton.git"
 branch = "master"
-features = ["web", "gql_transport", "jrpc_transport", "extended_models"]
+features = ["web", "gql_transport", "jrpc_transport", "extended_models", "non_threadsafe"]
 
 [patch.crates-io]
 hmac-drbg = { git = "https://github.com/Rexagon/rust-hmac-drbg" }

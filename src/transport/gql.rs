@@ -13,17 +13,14 @@ use crate::utils::*;
 pub struct GqlConnection {
     #[wasm_bindgen(skip)]
     pub inner: Arc<GqlConnectionImpl>,
-    #[wasm_bindgen(skip)]
-    pub clock: Arc<nt::utils::ClockWithOffset>,
 }
 
 #[wasm_bindgen]
 impl GqlConnection {
     #[wasm_bindgen(constructor)]
-    pub fn new(clock: &ClockWithOffset, sender: IGqlSender) -> Self {
+    pub fn new(sender: IGqlSender) -> Self {
         Self {
             inner: Arc::new(GqlConnectionImpl::new(sender)),
-            clock: clock.clone_inner(),
         }
     }
 

@@ -61,29 +61,32 @@ pub struct Transport {
 #[wasm_bindgen]
 impl Transport {
     #[wasm_bindgen(js_name = "fromGqlConnection")]
-    pub fn from_gql_connection(gql: &gql::GqlConnection) -> Transport {
+    pub fn from_gql_connection(gql: &gql::GqlConnection, clock: &ClockWithOffset) -> Transport {
         let transport = Arc::new(nt::transport::gql::GqlTransport::new(gql.inner.clone()));
         Self {
             handle: TransportHandle::GraphQl(transport),
-            clock: gql.clock.clone(),
+            clock: clock.clone_inner(),
         }
     }
 
     #[wasm_bindgen(js_name = "fromJrpcConnection")]
-    pub fn from_jrpc_connection(jrpc: &jrpc::JrpcConnection) -> Transport {
+    pub fn from_jrpc_connection(jrpc: &jrpc::JrpcConnection, clock: &ClockWithOffset) -> Transport {
         let transport = Arc::new(nt::transport::jrpc::JrpcTransport::new(jrpc.inner.clone()));
         Self {
             handle: TransportHandle::Jrpc(transport),
-            clock: jrpc.clock.clone(),
+            clock: clock.clone_inner(),
         }
     }
 
     #[wasm_bindgen(js_name = "fromProxyConnection")]
-    pub fn from_proxy_connection(proxy: &proxy::ProxyConnection) -> Transport {
+    pub fn from_proxy_connection(
+        proxy: &proxy::ProxyConnection,
+        clock: &ClockWithOffset,
+    ) -> Transport {
         let transport = Arc::new(proxy::ProxyTransport::new(proxy.inner.clone()));
         Self {
             handle: TransportHandle::Proxy(transport),
-            clock: proxy.clock.clone(),
+            clock: clock.clone_inner(),
         }
     }
 

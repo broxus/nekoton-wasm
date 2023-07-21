@@ -14,11 +14,19 @@ use crate::TransactionTree;
 
 #[wasm_bindgen(typescript_custom_section)]
 const MODELS: &str = r#"
-export type NetworkDescription = {
+export type NetworkCapabilities = {
     globalId: number,
     capabilities: string,
+};
+
+export type NetworkDescription = NetworkCapabilities & {
     signatureId: number | undefined,
 };
+
+export type BlockchainConfig = {
+    globalId: number,
+    boc: string,
+}
 
 export type TransactionId = {
     lt: string,
@@ -143,9 +151,9 @@ export type ExecutionOutput = {
 export type ReliableBehaviorType = 'BlockWalking' | 'IntensivePolling';
 
 export type TransportInfo = {
-    max_transactions_per_fetch: number;
-    reliable_behavior: ReliableBehaviorType;
-    has_key_blocks: boolean;
+    maxTransactionsPerFetch: number;
+    reliableBehavior: ReliableBehaviorType;
+    hasKeyBlocks: boolean;
 };
 
 export type MethodName = undefined | string | string[];
