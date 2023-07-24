@@ -17,21 +17,14 @@ if [ -d "pkg-node" ]; then
     rm -rf pkg-node
 fi
 
-# Build for both targets
-wasm-pack build --release -t nodejs -d pkg-node
-wasm-pack build --release -t web -d pkg
+# Build for node target
+wasm-pack build --release -t nodejs -d pkg
 
 # Get the package name
 PKG_NAME=$(jq -r .name pkg/package.json | sed 's/\-/_/g')
 
-# Merge nodejs & browser packages
-cp "pkg-node/${PKG_NAME}.js" "pkg/${PKG_NAME}_main.js"
-cp "pkg-node/${PKG_NAME}.d.ts" "pkg/${PKG_NAME}_main.d.ts"
+sed -i "s/__wbindgen_placeholder__/wbg/g" "pkg/${PKG_NAME}.js"
 
-sed -i "s/__wbindgen_placeholder__/wbg/g" "pkg/${PKG_NAME}_main.js"
-
-jq ".main = \"${PKG_NAME}_main.js\"" pkg/package.json |
-  jq ".browser = \"${PKG_NAME}.js\"" > pkg/temp.json
+jq ".main = \"${PKG_NAME}.js\"" pkg/package.json > pkg/temp.json
 mv pkg/temp.json pkg/package.json
 
-rm -rf pkg-node

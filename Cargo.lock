@@ -715,6 +715,7 @@ dependencies = [
  "num-traits",
  "rand",
  "serde",
+ "serde-wasm-bindgen",
  "sha2",
  "thiserror",
  "tokio",
@@ -722,6 +723,7 @@ dependencies = [
  "ton_block",
  "ton_executor",
  "ton_types",
+ "ton_vm",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "zeroize",
@@ -1026,6 +1028,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3b88756493a5bd5e5395d53baa70b194b05764ab85b59e43e4b8f4e1192fa9b1"
 dependencies = [
  "serde_derive",
+]
+
+[[package]]
+name = "serde-wasm-bindgen"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f3b143e2833c57ab9ad3ea280d21fd34e285a42837aeb0ee301f4f41890fa00e"
+dependencies = [
+ "js-sys",
+ "serde",
+ "wasm-bindgen",
 ]
 
 [[package]]
