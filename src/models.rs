@@ -3,7 +3,9 @@ use std::convert::TryFrom;
 
 use nt::core::models;
 use nt::core::models::TransactionError;
-use ton_block::{Deserializable, GetRepresentationHash, Serializable, TrBouncePhase};
+use ton_block::{
+    Deserializable, GetRepresentationHash, MsgAddressInt, Serializable, TrBouncePhase,
+};
 use ton_types::UInt256;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -108,7 +110,6 @@ export type JsRawMessage = {
   bounced: boolean,
   body?: string,
   bodyHash?: string,
-  boc: string,
   init?: {
     codeHash: string
   },
@@ -436,19 +437,50 @@ pub fn make_message(data: &models::Message) -> JsValue {
 
 pub fn make_raw_message(data: &ton_block::Message) -> JsRawMessage {
     let hash = data.hash().unwrap_or_default();
-    let message = models::Message::try_from((hash, data.clone()))
-        .handle_error()
-        .unwrap();
-    let msg_type = match data.header() {
-        ton_block::CommonMsgInfo::IntMsgInfo(_header) => "IntMsg",
-        ton_block::CommonMsgInfo::ExtInMsgInfo(_header) => "ExtIn",
-        ton_block::CommonMsgInfo::ExtOutMsgInfo(_header) => "ExtOut",
+
+    #[derive(Default)]
+    struct MessageCommon {
+        pub src: Option<MsgAddressInt>,
+        pub dst: Option<MsgAddressInt>,
+        pub value: u64,
+        pub bounce: bool,
+        pub bounced: bool,
+        pub msg_type: String,
+    }
+
+    let common = match data.header() {
+        ton_block::CommonMsgInfo::IntMsgInfo(header) => MessageCommon {
+            src: match &header.src {
+                ton_block::MsgAddressIntOrNone::Some(addr) => Some(addr.clone()),
+                ton_block::MsgAddressIntOrNone::None => None,
+            },
+            dst: Some(header.dst.clone()),
+            value: header.value.grams.as_u128() as u64,
+            bounce: header.bounce,
+            bounced: header.bounced,
+            msg_type: "IntMsg".to_string(),
+        },
+        ton_block::CommonMsgInfo::ExtInMsgInfo(header) => MessageCommon {
+            src: None,
+            dst: Some(header.dst.clone()),
+            msg_type: "ExtIn".to_string(),
+            ..Default::default()
+        },
+        ton_block::CommonMsgInfo::ExtOutMsgInfo(header) => MessageCommon {
+            src: match &header.src {
+                ton_block::MsgAddressIntOrNone::Some(addr) => Some(addr.clone()),
+                ton_block::MsgAddressIntOrNone::None => None,
+            },
+            msg_type: "ExtOut".to_string(),
+            ..Default::default()
+        },
     };
 
-    let (body, body_hash) = if let Some(body) = &message.body {
+    let (body, body_hash) = if let Some(body) = &data.body() {
+        let data = body.clone().into_cell();
         (
-            Some(make_boc(&body.data).expect("Shouldn't fail")),
-            Some(body.hash.to_hex_string()),
+            Some(make_boc(&data).expect("Shouldn't fail")),
+            Some(data.repr_hash().to_hex_string()),
         )
     } else {
         (None, None)
@@ -470,17 +502,16 @@ pub fn make_raw_message(data: &ton_block::Message) -> JsRawMessage {
     let lt = data.lt();
 
     ObjectBuilder::new()
-        .set("hash", message.hash.to_hex_string())
-        .set("src", message.src.as_ref().map(ToString::to_string))
-        .set("dst", message.dst.as_ref().map(ToString::to_string))
-        .set("value", message.value.to_string())
-        .set("bounce", message.bounce)
-        .set("bounced", message.bounced)
+        .set("hash", hash.to_hex_string())
+        .set("src", common.src.as_ref().map(ToString::to_string))
+        .set("dst", common.dst.as_ref().map(ToString::to_string))
+        .set("value", common.value.to_string())
+        .set("bounce", common.bounce)
+        .set("bounced", common.bounced)
         .set("body", body)
         .set("bodyHash", body_hash)
-        .set("boc", message.boc.to_string())
         .set("init", init)
-        .set("msgType", msg_type)
+        .set("msgType", common.msg_type)
         .set("lt", lt)
         .build()
         .unchecked_into()
