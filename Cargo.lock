@@ -699,7 +699,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "nekoton-wasm"
+name = "nekoton-wasm-extended"
 version = "1.2.0"
 dependencies = [
  "anyhow",
