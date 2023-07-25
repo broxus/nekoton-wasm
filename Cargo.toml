@@ -1,5 +1,5 @@
 [package]
-name = "nekoton-wasm"
+name = "nekoton-wasm-extended"
 version = "1.2.0"
 edition = "2021"
 authors = ["Ivan Kalinin <i.kalinin@dexpa.io>"]
