@@ -18,8 +18,8 @@ if [ -d "pkg-node" ]; then
 fi
 
 # Build for both targets
-wasm-pack build --dev -t nodejs -d pkg-node
-wasm-pack build --dev -t web -d pkg
+wasm-pack build --release -t nodejs -d pkg-node
+wasm-pack build --release -t web -d pkg
 
 # Get the package name
 PKG_NAME=$(jq -r .name pkg/package.json | sed 's/\-/_/g')
