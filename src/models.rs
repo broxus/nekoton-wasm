@@ -19,7 +19,7 @@ use crate::TransactionTree;
 const MODELS: &str = r#"
 export type NetworkCapabilities = {
     globalId: number,
-    capabilities: string,
+    raw: string,
 };
 
 export type NetworkDescription = NetworkCapabilities & {
