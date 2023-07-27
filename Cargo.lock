@@ -699,8 +699,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "nekoton-wasm-extended"
-version = "1.2.0"
+name = "nekoton-wasm-locklift"
+version = "1.20.0"
 dependencies = [
  "anyhow",
  "async-trait",
