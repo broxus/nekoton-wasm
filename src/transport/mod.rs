@@ -12,11 +12,13 @@ use crate::utils::*;
 pub mod gql;
 pub mod jrpc;
 pub mod proxy;
+pub mod proto;
 
 #[derive(Clone)]
 pub enum TransportHandle {
     GraphQl(Arc<nt::transport::gql::GqlTransport>),
     Jrpc(Arc<nt::transport::jrpc::JrpcTransport>),
+    Proto(Arc<nt::transport::proto::ProtoTransport>),
     Proxy(Arc<proxy::ProxyTransport>),
 }
 
@@ -25,6 +27,7 @@ impl TransportHandle {
         match self {
             Self::GraphQl(transport) => transport.get_block(block_id).await.handle_error(),
             Self::Jrpc(_) => Err(TransportError::MethodNotSupported).handle_error(),
+            Self::Proto(_) => Err(TransportError::MethodNotSupported).handle_error(),
             Self::Proxy(_) => Err(TransportError::MethodNotSupported).handle_error(),
         }
     }
@@ -35,6 +38,7 @@ impl<'a> AsRef<dyn nt::transport::Transport + 'a> for TransportHandle {
         match self {
             Self::GraphQl(transport) => transport.as_ref(),
             Self::Jrpc(transport) => transport.as_ref(),
+            Self::Proto(transport) => transport.as_ref(),
             Self::Proxy(transport) => transport.as_ref(),
         }
     }
@@ -45,6 +49,7 @@ impl From<TransportHandle> for Arc<dyn nt::transport::Transport> {
         match handle {
             TransportHandle::GraphQl(transport) => transport,
             TransportHandle::Jrpc(transport) => transport,
+            TransportHandle::Proto(transport) => transport,
             TransportHandle::Proxy(transport) => transport,
         }
     }
@@ -74,6 +79,15 @@ impl Transport {
         let transport = Arc::new(nt::transport::jrpc::JrpcTransport::new(jrpc.inner.clone()));
         Self {
             handle: TransportHandle::Jrpc(transport),
+            clock: clock.clone_inner(),
+        }
+    }
+
+    #[wasm_bindgen(js_name = "fromProtoConnection")]
+    pub fn from_proto_connection(proto: &proto::ProtoConnection, clock: &ClockWithOffset) -> Transport {
+        let transport = Arc::new(nt::transport::proto::ProtoTransport::new(proto.inner.clone()));
+        Self {
+            handle: TransportHandle::Proto(transport),
             clock: clock.clone_inner(),
         }
     }

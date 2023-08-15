@@ -48,8 +48,8 @@ ton_executor = { git = "https://github.com/broxus/ton-labs-executor.git" }
 [dependencies.nt]
 package = "nekoton"
 git = "https://github.com/broxus/nekoton.git"
-branch = "feature/better-poll"
-features = ["web", "gql_transport", "jrpc_transport", "extended_models", "non_threadsafe"]
+branch = "feature/protobuf"
+features = ["web", "gql_transport", "jrpc_transport", "proto_transport", "extended_models", "non_threadsafe"]
 
 [patch.crates-io]
 hmac-drbg = { git = "https://github.com/Rexagon/rust-hmac-drbg" }
