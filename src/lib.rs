@@ -284,6 +284,8 @@ pub fn execute_local_extended(
             let mut transaction =
                 ton_block::Transaction::with_account_and_message(&raw_acc, &message, lt)
                     .handle_error()?;
+            account = raw_acc.serialize().handle_error()?;
+
             transaction.set_now(utime);
             let mut description = TransactionDescrOrdinary::default();
             description.aborted = true;
