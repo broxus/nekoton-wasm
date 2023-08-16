@@ -39,6 +39,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "ahash"
+version = "0.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c99f64d1e06488f620f932677e24bc6e2897582980441ae90a671415bd7ec2f"
+dependencies = [
+ "cfg-if",
+ "getrandom",
+ "once_cell",
+ "version_check",
+]
+
+[[package]]
 name = "anyhow"
 version = "1.0.72"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -419,8 +431,14 @@ version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
 dependencies = [
- "ahash",
+ "ahash 0.7.6",
 ]
+
+[[package]]
+name = "hashbrown"
+version = "0.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "43a3c133739dddd0d2990f9a4bdf8eb4b21ef50e4851ca85ab661199821d510e"
 
 [[package]]
 name = "hashbrown"
@@ -583,7 +601,7 @@ dependencies = [
 [[package]]
 name = "nekoton"
 version = "0.13.1"
-source = "git+https://github.com/broxus/nekoton.git?branch=master#20945ffb8315dc44959efbd001b13a32bd2dbc73"
+source = "git+https://github.com/broxus/nekoton.git?branch=feature/better-poll#a9dbd77a07dc40427479171d46e3afc761fbd30d"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -607,6 +625,7 @@ dependencies = [
  "once_cell",
  "parking_lot",
  "pbkdf2",
+ "quick_cache",
  "rand",
  "secstr",
  "serde",
@@ -627,7 +646,7 @@ dependencies = [
 [[package]]
 name = "nekoton-abi"
 version = "0.13.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=master#20945ffb8315dc44959efbd001b13a32bd2dbc73"
+source = "git+https://github.com/broxus/nekoton.git?branch=feature/better-poll#a9dbd77a07dc40427479171d46e3afc761fbd30d"
 dependencies = [
  "anyhow",
  "base64",
@@ -654,7 +673,7 @@ dependencies = [
 [[package]]
 name = "nekoton-contracts"
 version = "0.13.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=master#20945ffb8315dc44959efbd001b13a32bd2dbc73"
+source = "git+https://github.com/broxus/nekoton.git?branch=feature/better-poll#a9dbd77a07dc40427479171d46e3afc761fbd30d"
 dependencies = [
  "anyhow",
  "nekoton-abi",
@@ -668,7 +687,7 @@ dependencies = [
 [[package]]
 name = "nekoton-derive"
 version = "0.13.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=master#20945ffb8315dc44959efbd001b13a32bd2dbc73"
+source = "git+https://github.com/broxus/nekoton.git?branch=feature/better-poll#a9dbd77a07dc40427479171d46e3afc761fbd30d"
 dependencies = [
  "either",
  "proc-macro2",
@@ -679,7 +698,7 @@ dependencies = [
 [[package]]
 name = "nekoton-utils"
 version = "0.13.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=master#20945ffb8315dc44959efbd001b13a32bd2dbc73"
+source = "git+https://github.com/broxus/nekoton.git?branch=feature/better-poll#a9dbd77a07dc40427479171d46e3afc761fbd30d"
 dependencies = [
  "anyhow",
  "base64",
@@ -920,6 +939,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "18fb31db3f9bddb2ea821cde30a9f70117e3f119938b5ee630b7403aa6e2ead9"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "quick_cache"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5253a3a0d56548d5b0be25414171dc780cc6870727746d05bd2bde352eee96c5"
+dependencies = [
+ "ahash 0.8.3",
+ "hashbrown 0.13.2",
+ "parking_lot",
 ]
 
 [[package]]

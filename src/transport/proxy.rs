@@ -4,7 +4,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use gloo_utils::errors::JsError;
 use nt::core::models::NetworkCapabilities;
-use nt::transport::models::{RawContractState, RawTransaction};
+use nt::transport::models::{PollContractState, RawContractState, RawTransaction};
 use nt::transport::{Transport, TransportInfo};
 use nt::utils::Clock;
 use ton_block::{Block, Deserializable, MsgAddressInt, Serializable};
@@ -71,7 +71,9 @@ impl Transport for ProxyTransport {
             .context("Expected a string with base64 encoded account state")?;
 
         Ok(match ton_block::Account::construct_from_base64(&account)? {
-            ton_block::Account::AccountNone => RawContractState::NotExists,
+            ton_block::Account::AccountNone => RawContractState::NotExists {
+                timings: nt::abi::GenTimings::Unknown,
+            },
             ton_block::Account::Account(account) => {
                 let last_transaction_id = nt::abi::LastTransactionId::Inexact {
                     latest_lt: account.storage.last_trans_lt,
@@ -84,6 +86,15 @@ impl Transport for ProxyTransport {
                 })
             }
         })
+    }
+
+    async fn poll_contract_state(
+        &self,
+        address: &MsgAddressInt,
+        _last_trans_lt: u64,
+    ) -> Result<PollContractState> {
+        let state = self.get_contract_state(address).await?;
+        Ok(PollContractState::Changed(state))
     }
 
     async fn get_accounts_by_code_hash(

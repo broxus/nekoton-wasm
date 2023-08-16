@@ -666,7 +666,7 @@ pub fn make_full_contract_state(
                 .build()
                 .unchecked_into())
         }
-        nt::transport::models::RawContractState::NotExists => Ok(JsValue::undefined()),
+        nt::transport::models::RawContractState::NotExists { .. } => Ok(JsValue::undefined()),
     }
 }
 
