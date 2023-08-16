@@ -277,8 +277,8 @@ pub fn execute_local_extended(
             let mut raw_acc =
                 ton_block::Account::construct_from_cell(account.clone()).handle_error()?;
             let lt = std::cmp::max(
-                raw_acc.last_tr_time().unwrap_or_default() + 1,
-                message.lt().unwrap_or(0) + 1,
+                raw_acc.last_tr_time().unwrap_or_default(),
+                std::cmp::max(message.lt().unwrap_or(0) + 1, last_trans_lt + 1)
             );
             raw_acc.set_last_tr_time(lt);
             let mut transaction =
@@ -324,7 +324,7 @@ pub fn execute_local_extended(
             transaction
                 .write_state_update(&state_update)
                 .handle_error()?;
-            transaction.set_prev_trans_lt(lt);
+            transaction.set_prev_trans_lt(last_trans_lt);
 
             let trace_js = trace.lock().unwrap();
             let trace_res_vec_js: Result<Vec<_>, _> =
