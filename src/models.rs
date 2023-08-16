@@ -249,8 +249,7 @@ export type TransactionExecutorOutput =
     | { account: string, transaction: Transaction };
 
 export type TransactionExecutorExtendedOutput =
-    | { exitCode: number }
-    | { account: string, transaction: JsRawTransaction, trace: EngineTraceInfo[] };
+    { account: string, transaction: JsRawTransaction, trace: EngineTraceInfo[] };
 
 export type EngineTraceInfo = {
   infoType: string,
