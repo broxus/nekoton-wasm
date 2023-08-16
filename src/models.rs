@@ -410,7 +410,7 @@ fn make_account_status(data: nt::core::models::AccountStatus) -> AccountStatus {
         models::AccountStatus::Active => "active",
         models::AccountStatus::Nonexist => "nonexist",
     })
-        .unchecked_into()
+    .unchecked_into()
 }
 
 pub fn make_message(data: &models::Message) -> JsValue {
@@ -972,7 +972,7 @@ pub fn make_polling_method(s: models::PollingMethod) -> PollingMethod {
         models::PollingMethod::Manual => "manual",
         models::PollingMethod::Reliable => "reliable",
     })
-        .unchecked_into()
+    .unchecked_into()
 }
 
 pub fn make_ed25519_key_pair(data: ed25519_dalek::Keypair) -> Ed25519KeyPair {
@@ -1006,9 +1006,9 @@ pub fn make_full_contract_state(
             let code_hash = match &state.account.storage.state {
                 ton_block::AccountState::AccountActive {
                     state_init:
-                    ton_block::StateInit {
-                        code: Some(code), ..
-                    },
+                        ton_block::StateInit {
+                            code: Some(code), ..
+                        },
                 } => Some(code.repr_hash().to_hex_string()),
                 _ => None,
             };

@@ -10,7 +10,7 @@ use ed25519_dalek::{Signer, Verifier};
 use nt::abi::FunctionExt;
 use nt::transport::models::RawTransaction;
 use nt::utils::Clock;
-use ton_block::{Deserializable, GetRepresentationHash, Serializable};
+use ton_block::{Deserializable, GetRepresentationHash, Serializable, TransactionDescrOrdinary};
 use ton_executor::TransactionExecutor;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::{JsCast, JsValue};
@@ -273,15 +273,79 @@ pub fn execute_local_extended(
     {
         Ok(tx) => tx,
         Err(e) => {
-            return match e.downcast_ref::<ton_executor::ExecutorError>() {
-                Some(ton_executor::ExecutorError::NoAcceptError(code, _)) => {
-                    Ok(ObjectBuilder::new()
-                        .set("exitCode", *code)
-                        .build()
-                        .unchecked_into())
+            let old_hash = account.repr_hash();
+            let mut raw_acc =
+                ton_block::Account::construct_from_cell(account.clone()).handle_error()?;
+            let lt = std::cmp::max(
+                raw_acc.last_tr_time().unwrap_or_default(),
+                message.lt().unwrap_or(0) + 1,
+            );
+            raw_acc.set_last_tr_time(lt);
+            let mut transaction =
+                ton_block::Transaction::with_account_and_message(&raw_acc, &message, lt)
+                    .handle_error()?;
+            transaction.set_now(utime);
+            let mut description = TransactionDescrOrdinary::default();
+            description.aborted = true;
+            match e.downcast_ref::<ton_executor::ExecutorError>() {
+                Some(ton_executor::ExecutorError::NoAcceptError(error, arg)) => {
+                    let mut vm_phase = ton_block::TrComputePhaseVm::default();
+                    vm_phase.success = false;
+                    vm_phase.exit_code = *error;
+                    if let Some(item) = arg {
+                        vm_phase.exit_arg = match item
+                            .as_integer()
+                            .and_then(|value| value.into(i32::MIN..=i32::MAX))
+                        {
+                            Err(_) | Ok(0) => None,
+                            Ok(exit_arg) => Some(exit_arg),
+                        };
+                    }
+                    description.compute_ph = ton_block::TrComputePhase::Vm(vm_phase);
                 }
-                _ => Err(e).handle_error(),
+                Some(ton_executor::ExecutorError::NoFundsToImportMsg) => {
+                    description.compute_ph = if raw_acc.is_none() {
+                        ton_block::TrComputePhase::skipped(ton_block::ComputeSkipReason::NoState)
+                    } else {
+                        ton_block::TrComputePhase::skipped(ton_block::ComputeSkipReason::NoGas)
+                    };
+                }
+                Some(ton_executor::ExecutorError::ExtMsgComputeSkipped(reason)) => {
+                    description.compute_ph = ton_block::TrComputePhase::skipped(reason.clone());
+                }
+                _ => return Err(e).handle_error(),
             }
+            transaction
+                .write_description(&ton_block::TransactionDescr::Ordinary(description))
+                .handle_error()?;
+            let state_update = ton_block::HashUpdate::with_hashes(old_hash, account.repr_hash());
+            transaction
+                .write_state_update(&state_update)
+                .handle_error()?;
+            transaction.set_prev_trans_lt(lt);
+
+            let trace_js = trace.lock().unwrap();
+            let trace_res_vec_js: Result<Vec<_>, _> =
+                trace_js.iter().map(make_engine_trace).collect();
+            let trace_vec_js = trace_res_vec_js?;
+            let trace_js_array = trace_vec_js
+                .into_iter()
+                .map(JsValue::from)
+                .collect::<js_sys::Array>();
+
+            let hash = transaction.hash().handle_error()?;
+            return Ok(ObjectBuilder::new()
+                .set("account", make_boc(&account)?)
+                .set("trace", trace_js_array)
+                .set(
+                    "transaction",
+                    make_raw_transaction(nt::transport::models::RawTransaction {
+                        hash,
+                        data: transaction,
+                    }),
+                )
+                .build()
+                .unchecked_into());
         }
     };
 
@@ -361,7 +425,7 @@ pub fn unpack_contract_fields(
         &contract.abi_version,
         allow_partial,
     )
-        .handle_error()?;
+    .handle_error()?;
 
     make_tokens_object(tokens).map(Some)
 }
@@ -1075,7 +1139,7 @@ pub fn create_external_message(
             Cow::Owned(method.clone()),
             input,
         )
-            .handle_error()?,
+        .handle_error()?,
     })
 }
 
