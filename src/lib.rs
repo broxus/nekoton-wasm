@@ -277,7 +277,7 @@ pub fn execute_local_extended(
             let mut raw_acc =
                 ton_block::Account::construct_from_cell(account.clone()).handle_error()?;
             let lt = std::cmp::max(
-                raw_acc.last_tr_time().unwrap_or_default(),
+                raw_acc.last_tr_time().unwrap_or_default() + 1,
                 message.lt().unwrap_or(0) + 1,
             );
             raw_acc.set_last_tr_time(lt);
