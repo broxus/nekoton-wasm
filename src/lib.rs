@@ -12,6 +12,7 @@ use nt::transport::models::RawTransaction;
 use nt::utils::Clock;
 use ton_block::{Deserializable, GetRepresentationHash, Serializable, TransactionDescrOrdinary};
 use ton_executor::TransactionExecutor;
+use ton_types::UInt256;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::{JsCast, JsValue};
 use zeroize::Zeroize;
@@ -208,6 +209,7 @@ pub fn execute_local_extended(
     message: &str,
     utime: u32,
     disable_signature_check: bool,
+    block_seed: Option<String>,
     overwrite_balance: Option<String>,
     global_id: Option<i32>,
     trace_logs: Option<bool>,
@@ -243,7 +245,10 @@ pub fn execute_local_extended(
     };
 
     let global_id = global_id.unwrap_or(42);
-
+    let block_seed = match block_seed {
+        Some(seed) => UInt256::from_str(&seed).handle_error()?,
+        None => UInt256::rand(),
+    };
     let config = ton_block::ConfigParams::construct_from_base64(config).handle_error()?;
     let config = ton_executor::BlockchainConfig::with_config(config, global_id).handle_error()?;
 
@@ -259,6 +264,7 @@ pub fn execute_local_extended(
         block_lt: last_trans_lt + 10,
         last_tr_lt: Arc::new(AtomicU64::new(last_trans_lt + 1)),
         behavior_modifiers: Some(executor.behavior_modifiers()),
+        seed_block: block_seed,
         ..Default::default()
     };
 
