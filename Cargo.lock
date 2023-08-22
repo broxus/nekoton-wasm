@@ -701,7 +701,7 @@ checksum = "e5ce46fe64a9d73be07dcbe690a38ce1b293be448fd8ce1e6c1b8062c9f72c6a"
 [[package]]
 name = "nekoton"
 version = "0.13.1"
-source = "git+https://github.com/broxus/nekoton.git?branch=feature/protobuf#6e497477684897e08dca8cd4f064f5b1ea617039"
+source = "git+https://github.com/broxus/nekoton.git?branch=master#9acf2d50be8732c2e2326188c91f531258d8e069"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -747,7 +747,7 @@ dependencies = [
 [[package]]
 name = "nekoton-abi"
 version = "0.13.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=feature/protobuf#6e497477684897e08dca8cd4f064f5b1ea617039"
+source = "git+https://github.com/broxus/nekoton.git?branch=master#9acf2d50be8732c2e2326188c91f531258d8e069"
 dependencies = [
  "anyhow",
  "base64",
@@ -774,7 +774,7 @@ dependencies = [
 [[package]]
 name = "nekoton-contracts"
 version = "0.13.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=feature/protobuf#6e497477684897e08dca8cd4f064f5b1ea617039"
+source = "git+https://github.com/broxus/nekoton.git?branch=master#9acf2d50be8732c2e2326188c91f531258d8e069"
 dependencies = [
  "anyhow",
  "nekoton-abi",
@@ -788,7 +788,7 @@ dependencies = [
 [[package]]
 name = "nekoton-derive"
 version = "0.13.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=feature/protobuf#6e497477684897e08dca8cd4f064f5b1ea617039"
+source = "git+https://github.com/broxus/nekoton.git?branch=master#9acf2d50be8732c2e2326188c91f531258d8e069"
 dependencies = [
  "either",
  "proc-macro2",
@@ -799,7 +799,7 @@ dependencies = [
 [[package]]
 name = "nekoton-proto"
 version = "0.1.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=feature/protobuf#6e497477684897e08dca8cd4f064f5b1ea617039"
+source = "git+https://github.com/broxus/nekoton.git?branch=master#9acf2d50be8732c2e2326188c91f531258d8e069"
 dependencies = [
  "anyhow",
  "nekoton-abi",
@@ -812,7 +812,7 @@ dependencies = [
 [[package]]
 name = "nekoton-utils"
 version = "0.13.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=feature/protobuf#6e497477684897e08dca8cd4f064f5b1ea617039"
+source = "git+https://github.com/broxus/nekoton.git?branch=master#9acf2d50be8732c2e2326188c91f531258d8e069"
 dependencies = [
  "anyhow",
  "base64",

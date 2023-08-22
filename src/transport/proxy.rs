@@ -94,7 +94,7 @@ impl Transport for ProxyTransport {
         _last_trans_lt: u64,
     ) -> Result<PollContractState> {
         let state = self.get_contract_state(address).await?;
-        Ok(PollContractState::Changed(state))
+        Ok(state.into())
     }
 
     async fn get_accounts_by_code_hash(
