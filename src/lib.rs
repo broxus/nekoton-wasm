@@ -85,7 +85,9 @@ pub fn make_full_account_boc(account_stuff_boc: Option<String>) -> Result<String
 pub fn parse_full_account_boc(account: &str) -> Result<OptionFullContractState, JsValue> {
     let account = parse_cell(account)?;
     let account = if nt::utils::is_empty_cell(&account.repr_hash()) {
-        nt::transport::models::RawContractState::NotExists
+        nt::transport::models::RawContractState::NotExists {
+            timings: nt::abi::GenTimings::Unknown,
+        }
     } else {
         match ton_block::Account::construct_from_cell(account).handle_error()? {
             ton_block::Account::Account(account) => {
@@ -100,7 +102,9 @@ pub fn parse_full_account_boc(account: &str) -> Result<OptionFullContractState, 
                     },
                 )
             }
-            ton_block::Account::AccountNone => nt::transport::models::RawContractState::NotExists,
+            ton_block::Account::AccountNone => nt::transport::models::RawContractState::NotExists {
+                timings: nt::abi::GenTimings::Unknown,
+            },
         }
     };
     make_full_contract_state(account).map(JsValue::unchecked_into)
