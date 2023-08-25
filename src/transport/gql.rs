@@ -4,7 +4,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::*;
 
-use crate::external::{GqlConnectionImpl, IGqlSender};
+use crate::external::IGqlSender;
 use crate::models::*;
 use crate::utils::*;
 
@@ -12,7 +12,7 @@ use crate::utils::*;
 #[derive(Clone)]
 pub struct GqlConnection {
     #[wasm_bindgen(skip)]
-    pub inner: Arc<GqlConnectionImpl>,
+    pub inner: Arc<IGqlSender>,
 }
 
 #[wasm_bindgen]
@@ -20,7 +20,7 @@ impl GqlConnection {
     #[wasm_bindgen(constructor)]
     pub fn new(sender: IGqlSender) -> Self {
         Self {
-            inner: Arc::new(GqlConnectionImpl::new(sender)),
+            inner: Arc::new(sender),
         }
     }
 

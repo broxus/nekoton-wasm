@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use anyhow::Result;
 use tokio::sync::oneshot;
 use wasm_bindgen::prelude::*;
@@ -8,12 +6,17 @@ use wasm_bindgen::prelude::*;
 const GQL_SENDER: &str = r#"
 export interface IGqlSender {
   isLocal(): boolean;
-  send(data: string, handler: GqlQuery, long_query: boolean): void;
+  send(data: string, handler: StringQuery, long_query: boolean): void;
+}
+
+export interface IJrpcSender {
+  send(data: string, handler: StringQuery, requires_db: boolean): void;
+}
+
+export interface IProtoSender {
+  send(data: Uint8Array, handler: BytesQuery, requires_db: boolean): void;
 }
 "#;
-
-unsafe impl Send for IGqlSender {}
-unsafe impl Sync for IGqlSender {}
 
 #[wasm_bindgen]
 extern "C" {
@@ -27,28 +30,19 @@ extern "C" {
     pub fn send(this: &IGqlSender, data: &str, handler: StringQuery, long_query: bool);
 }
 
-pub struct GqlConnectionImpl {
-    sender: Arc<IGqlSender>,
-}
-
-impl GqlConnectionImpl {
-    pub fn new(sender: IGqlSender) -> Self {
-        Self {
-            sender: Arc::new(sender),
-        }
-    }
-}
+unsafe impl Send for IGqlSender {}
+unsafe impl Sync for IGqlSender {}
 
 #[async_trait::async_trait(?Send)]
-impl nt::external::GqlConnection for GqlConnectionImpl {
+impl nt::external::GqlConnection for IGqlSender {
     fn is_local(&self) -> bool {
-        self.sender.is_local()
+        self.is_local()
     }
 
     async fn post(&self, req: nt::external::GqlRequest) -> Result<String> {
         let (tx, rx) = oneshot::channel();
 
-        self.sender.send(&req.data, StringQuery { tx }, req.long_query);
+        self.send(&req.data, StringQuery { tx }, req.long_query);
         drop(req);
 
         let response = rx.await.unwrap_or(Err(QueryError::RequestDropped))?;
@@ -56,70 +50,48 @@ impl nt::external::GqlConnection for GqlConnectionImpl {
     }
 }
 
-unsafe impl Send for JrpcSender {}
-unsafe impl Sync for JrpcSender {}
-
 #[wasm_bindgen]
 extern "C" {
-    pub type JrpcSender;
+    #[wasm_bindgen(typescript_type = "IJrpcSender")]
+    pub type IJrpcSender;
+
     #[wasm_bindgen(method)]
-    pub fn send(this: &JrpcSender, data: &str, query: StringQuery, requires_db: bool);
+    pub fn send(this: &IJrpcSender, data: &str, query: StringQuery, requires_db: bool);
 }
 
-#[derive(Clone)]
-pub struct JrpcConnector {
-    sender: Arc<JrpcSender>,
-}
-
-impl JrpcConnector {
-    pub fn new(sender: JrpcSender) -> Self {
-        Self {
-            sender: Arc::new(sender),
-        }
-    }
-}
+unsafe impl Send for IJrpcSender {}
+unsafe impl Sync for IJrpcSender {}
 
 #[async_trait::async_trait(?Send)]
-impl nt::external::JrpcConnection for JrpcConnector {
+impl nt::external::JrpcConnection for IJrpcSender {
     async fn post(&self, req: nt::external::JrpcRequest) -> Result<String> {
         let (tx, rx) = oneshot::channel();
         let query = StringQuery { tx };
-        self.sender.send(&req.data, query, req.requires_db);
+        self.send(&req.data, query, req.requires_db);
         drop(req);
 
         Ok(rx.await.unwrap_or(Err(QueryError::RequestFailed))?)
     }
 }
 
-unsafe impl Send for ProtoSender {}
-unsafe impl Sync for ProtoSender {}
-
 #[wasm_bindgen]
 extern "C" {
-    pub type ProtoSender;
+    #[wasm_bindgen(typescript_type = "IProtoSender")]
+    pub type IProtoSender;
+
     #[wasm_bindgen(method)]
-    pub fn send(this: &ProtoSender, data: &[u8], query: BytesQuery, requires_db: bool);
+    pub fn send(this: &IProtoSender, data: &[u8], query: BytesQuery, requires_db: bool);
 }
 
-#[derive(Clone)]
-pub struct ProtoConnector {
-    sender: Arc<ProtoSender>,
-}
-
-impl ProtoConnector {
-    pub fn new(sender: ProtoSender) -> Self {
-        Self {
-            sender: Arc::new(sender),
-        }
-    }
-}
+unsafe impl Send for IProtoSender {}
+unsafe impl Sync for IProtoSender {}
 
 #[async_trait::async_trait(?Send)]
-impl nt::external::ProtoConnection for ProtoConnector {
+impl nt::external::ProtoConnection for IProtoSender {
     async fn post(&self, req: nt::external::ProtoRequest) -> Result<Vec<u8>> {
         let (tx, rx) = oneshot::channel();
         let query = BytesQuery { tx };
-        self.sender.send(&req.data, query, req.requires_db);
+        self.send(&req.data, query, req.requires_db);
         drop(req);
 
         Ok(rx.await.unwrap_or(Err(QueryError::RequestFailed))?)

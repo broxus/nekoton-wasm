@@ -2,20 +2,20 @@ use std::sync::Arc;
 
 use wasm_bindgen::prelude::*;
 
-use crate::external::{ProtoConnector, ProtoSender};
+use crate::external::IProtoSender;
 
 #[wasm_bindgen]
 pub struct ProtoConnection {
     #[wasm_bindgen(skip)]
-    pub inner: Arc<ProtoConnector>,
+    pub inner: Arc<IProtoSender>,
 }
 
 #[wasm_bindgen]
 impl ProtoConnection {
     #[wasm_bindgen(constructor)]
-    pub fn new(sender: ProtoSender) -> Self {
+    pub fn new(sender: IProtoSender) -> Self {
         Self {
-            inner: Arc::new(ProtoConnector::new(sender)),
+            inner: Arc::new(sender),
         }
     }
 }

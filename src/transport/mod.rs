@@ -11,8 +11,8 @@ use crate::utils::*;
 
 pub mod gql;
 pub mod jrpc;
-pub mod proxy;
 pub mod proto;
+pub mod proxy;
 
 #[derive(Clone)]
 pub enum TransportHandle {
@@ -26,9 +26,7 @@ impl TransportHandle {
     pub async fn get_block(&self, block_id: &str) -> Result<ton_block::Block, JsValue> {
         match self {
             Self::GraphQl(transport) => transport.get_block(block_id).await.handle_error(),
-            Self::Jrpc(_) => Err(TransportError::MethodNotSupported).handle_error(),
-            Self::Proto(_) => Err(TransportError::MethodNotSupported).handle_error(),
-            Self::Proxy(_) => Err(TransportError::MethodNotSupported).handle_error(),
+            _ => Err(TransportError::MethodNotSupported).handle_error(),
         }
     }
 }
@@ -84,8 +82,13 @@ impl Transport {
     }
 
     #[wasm_bindgen(js_name = "fromProtoConnection")]
-    pub fn from_proto_connection(proto: &proto::ProtoConnection, clock: &ClockWithOffset) -> Transport {
-        let transport = Arc::new(nt::transport::proto::ProtoTransport::new(proto.inner.clone()));
+    pub fn from_proto_connection(
+        proto: &proto::ProtoConnection,
+        clock: &ClockWithOffset,
+    ) -> Transport {
+        let transport = Arc::new(nt::transport::proto::ProtoTransport::new(
+            proto.inner.clone(),
+        ));
         Self {
             handle: TransportHandle::Proto(transport),
             clock: clock.clone_inner(),
