@@ -619,7 +619,7 @@ dependencies = [
 [[package]]
 name = "nekoton"
 version = "0.13.1"
-source = "git+https://github.com/broxus/nekoton.git?branch=master#8506aef0c921c393f734b7f58b55afd7d4ab610a"
+source = "git+https://github.com/broxus/nekoton.git?branch=master#d70dd09d4d482987541f1816fd3bce970710178c"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -665,7 +665,7 @@ dependencies = [
 [[package]]
 name = "nekoton-abi"
 version = "0.13.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=master#8506aef0c921c393f734b7f58b55afd7d4ab610a"
+source = "git+https://github.com/broxus/nekoton.git?branch=master#d70dd09d4d482987541f1816fd3bce970710178c"
 dependencies = [
  "anyhow",
  "base64",
@@ -692,7 +692,7 @@ dependencies = [
 [[package]]
 name = "nekoton-contracts"
 version = "0.13.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=master#8506aef0c921c393f734b7f58b55afd7d4ab610a"
+source = "git+https://github.com/broxus/nekoton.git?branch=master#d70dd09d4d482987541f1816fd3bce970710178c"
 dependencies = [
  "anyhow",
  "nekoton-abi",
@@ -706,7 +706,7 @@ dependencies = [
 [[package]]
 name = "nekoton-derive"
 version = "0.13.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=master#8506aef0c921c393f734b7f58b55afd7d4ab610a"
+source = "git+https://github.com/broxus/nekoton.git?branch=master#d70dd09d4d482987541f1816fd3bce970710178c"
 dependencies = [
  "either",
  "proc-macro2",
@@ -717,7 +717,7 @@ dependencies = [
 [[package]]
 name = "nekoton-proto"
 version = "0.1.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=master#8506aef0c921c393f734b7f58b55afd7d4ab610a"
+source = "git+https://github.com/broxus/nekoton.git?branch=master#d70dd09d4d482987541f1816fd3bce970710178c"
 dependencies = [
  "anyhow",
  "nekoton-abi",
@@ -729,7 +729,7 @@ dependencies = [
 [[package]]
 name = "nekoton-utils"
 version = "0.13.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=master#8506aef0c921c393f734b7f58b55afd7d4ab610a"
+source = "git+https://github.com/broxus/nekoton.git?branch=master#d70dd09d4d482987541f1816fd3bce970710178c"
 dependencies = [
  "anyhow",
  "base64",
