@@ -9,6 +9,7 @@ use std::sync::Arc;
 use ed25519_dalek::{Signer, Verifier};
 use nt::abi::FunctionExt;
 use nt::utils::Clock;
+use num_traits::CheckedSub;
 use ton_block::{Deserializable, GetRepresentationHash, Serializable};
 use ton_executor::TransactionExecutor;
 use wasm_bindgen::prelude::*;
@@ -108,6 +109,61 @@ pub fn parse_full_account_boc(account: &str) -> Result<OptionFullContractState, 
         }
     };
     make_full_contract_state(account).map(JsValue::unchecked_into)
+}
+
+#[wasm_bindgen(js_name = "computeStorageFee")]
+pub fn compute_storage_fee(
+    config: &str,
+    account: &str,
+    utime: u32,
+    is_masterchain: bool,
+) -> Result<StorageFeeInfo, JsValue> {
+    let account = parse_account_stuff(account)?;
+    let config = ton_block::ConfigParams::construct_from_base64(config).handle_error()?;
+    let config = ton_executor::BlockchainConfig::with_config(config, 0).handle_error()?;
+    let utime = std::cmp::max(utime, account.storage_stat.last_paid);
+
+    let mut account_status = match &account.storage.state {
+        ton_block::AccountState::AccountUninit => nt::core::models::AccountStatus::Uninit,
+        ton_block::AccountState::AccountFrozen { .. } => nt::core::models::AccountStatus::Frozen,
+        ton_block::AccountState::AccountActive { .. } => nt::core::models::AccountStatus::Active,
+    };
+
+    let storage_fee = config
+        .calc_storage_fee(&account.storage_stat, is_masterchain, utime)
+        .handle_error()?;
+
+    let mut storage_fee_debt = account.storage_stat.due_payment;
+    let total_fee = storage_fee + storage_fee_debt.unwrap_or_default();
+
+    let gas_config = config.get_gas_config(is_masterchain);
+
+    // Check if `balance <= total_fee`
+    if let Some(total_fee) = total_fee.checked_sub(&account.storage.balance.grams) {
+        storage_fee_debt = Some(total_fee);
+
+        let need_freeze = matches!(account_status, nt::core::models::AccountStatus::Active)
+            && total_fee > ton_block::Grams::from(gas_config.freeze_due_limit);
+
+        let need_delete = matches!(
+            account_status,
+            nt::core::models::AccountStatus::Uninit | nt::core::models::AccountStatus::Frozen
+        ) && total_fee > ton_block::Grams::from(gas_config.delete_due_limit);
+
+        if need_delete {
+            account_status = nt::core::models::AccountStatus::Nonexist;
+        } else if need_freeze {
+            account_status = nt::core::models::AccountStatus::Frozen;
+        }
+    }
+
+    Ok(make_storage_fee_info(
+        &storage_fee,
+        storage_fee_debt.as_ref(),
+        account_status,
+        gas_config.freeze_due_limit,
+        gas_config.delete_due_limit,
+    ))
 }
 
 #[wasm_bindgen(js_name = "executeLocal")]

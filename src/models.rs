@@ -223,6 +223,14 @@ export type TransactionTree = {
     root: Transaction,
     children: TransactionTree[]
 };
+
+export type StorageFeeInfo = {
+    storageFee: string;
+    storageFeeDebt?: string;
+    accountStatus: AccountStatus;
+    freezeDueLimit: string;
+    deleteDueLimit: string;
+};
 "#;
 
 // TODO: add zerostate hash
@@ -670,6 +678,26 @@ pub fn make_full_contract_state(
     }
 }
 
+pub fn make_storage_fee_info(
+    storage_fee: &ton_block::Grams,
+    storage_fee_debt: Option<&ton_block::Grams>,
+    account_status: models::AccountStatus,
+    freeze_due_limit: u64,
+    delete_due_limit: u64,
+) -> StorageFeeInfo {
+    ObjectBuilder::new()
+        .set("storageFee", storage_fee.to_string())
+        .set(
+            "storageFeeDebt",
+            storage_fee_debt.map(|value| value.to_string()),
+        )
+        .set("accountStatus", make_account_status(account_status))
+        .set("freezeDueLimit", freeze_due_limit.to_string())
+        .set("deleteDueLimit", delete_due_limit.to_string())
+        .build()
+        .unchecked_into()
+}
+
 pub fn make_boc_with_hash(cell: ton_types::Cell) -> Result<BocWithHash, JsValue> {
     Ok(ObjectBuilder::new()
         .set("hash", cell.repr_hash().to_hex_string())
@@ -702,6 +730,9 @@ extern "C" {
 
     #[wasm_bindgen(typescript_type = "RawContractState")]
     pub type RawContractState;
+
+    #[wasm_bindgen(typescript_type = "StorageFeeInfo")]
+    pub type StorageFeeInfo;
 
     #[wasm_bindgen(typescript_type = "AccountStatus")]
     pub type AccountStatus;
