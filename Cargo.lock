@@ -750,7 +750,7 @@ dependencies = [
 
 [[package]]
 name = "nekoton-wasm"
-version = "1.3.2"
+version = "1.3.3"
 dependencies = [
  "anyhow",
  "async-trait",

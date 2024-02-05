@@ -111,6 +111,16 @@ pub fn parse_full_account_boc(account: &str) -> Result<OptionFullContractState, 
     make_full_contract_state(account).map(JsValue::unchecked_into)
 }
 
+#[wasm_bindgen(js_name = "parseFullAccountStateInit")]
+pub fn parse_full_account_state_init(account: &str) -> Result<Option<String>, JsValue> {
+    let account = parse_cell(account)?;
+    let account = ton_block::Account::construct_from_cell(account).handle_error()?;
+    account
+        .state_init()
+        .map(|state_init| serialize_into_boc(state_init))
+        .transpose()
+}
+
 #[wasm_bindgen(js_name = "computeStorageFee")]
 pub fn compute_storage_fee(
     config: &str,
