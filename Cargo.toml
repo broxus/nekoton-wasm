@@ -46,14 +46,21 @@ ton_block = { git = "https://github.com/broxus/ton-labs-block.git", features = [
 ] }
 ton_types = { git = "https://github.com/broxus/ton-labs-types.git" }
 ton_executor = { git = "https://github.com/broxus/ton-labs-executor.git" }
-ton_vm = { git = "https://github.com/broxus/ton-labs-vm.git"}
+ton_vm = { git = "https://github.com/broxus/ton-labs-vm.git" }
 serde-wasm-bindgen = "0.5.0"
 
 [dependencies.nt]
 package = "nekoton"
 git = "https://github.com/broxus/nekoton.git"
-branch = "master"
-features = ["web", "gql_transport", "jrpc_transport", "proto_transport", "extended_models", "non_threadsafe"]
+branch = "feature/get-blockchain-config"
+features = [
+    "web",
+    "gql_transport",
+    "jrpc_transport",
+    "proto_transport",
+    "extended_models",
+    "non_threadsafe",
+]
 
 [patch.crates-io]
 hmac-drbg = { git = "https://github.com/Rexagon/rust-hmac-drbg" }
