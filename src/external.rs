@@ -1,43 +1,20 @@
-use std::sync::Arc;
-
 use anyhow::Result;
 use tokio::sync::oneshot;
 use wasm_bindgen::prelude::*;
-
-pub struct GqlConnectionImpl {
-    sender: Arc<IGqlSender>,
-}
-
-impl GqlConnectionImpl {
-    pub fn new(sender: IGqlSender) -> Self {
-        Self {
-            sender: Arc::new(sender),
-        }
-    }
-}
-
-#[async_trait::async_trait(?Send)]
-impl nt::external::GqlConnection for GqlConnectionImpl {
-    fn is_local(&self) -> bool {
-        self.sender.is_local()
-    }
-
-    async fn post(&self, req: nt::external::GqlRequest) -> Result<String> {
-        let (tx, rx) = oneshot::channel();
-
-        self.sender.send(&req.data, GqlQuery { tx }, req.long_query);
-        drop(req);
-
-        let response = rx.await.unwrap_or(Err(GqlQueryError::RequestDropped))?;
-        Ok(response)
-    }
-}
 
 #[wasm_bindgen(typescript_custom_section)]
 const GQL_SENDER: &str = r#"
 export interface IGqlSender {
   isLocal(): boolean;
-  send(data: string, handler: GqlQuery, long_query: boolean): void;
+  send(data: string, handler: StringQuery, long_query: boolean): void;
+}
+
+export interface IJrpcSender {
+  send(data: string, handler: StringQuery, requires_db: boolean): void;
+}
+
+export interface IProtoSender {
+  send(data: Uint8Array, handler: BytesQuery, requires_db: boolean): void;
 }
 "#;
 
@@ -50,91 +27,113 @@ extern "C" {
     pub fn is_local(this: &IGqlSender) -> bool;
 
     #[wasm_bindgen(method)]
-    pub fn send(this: &IGqlSender, data: &str, handler: GqlQuery, long_query: bool);
+    pub fn send(this: &IGqlSender, data: &str, handler: StringQuery, long_query: bool);
 }
 
 unsafe impl Send for IGqlSender {}
 unsafe impl Sync for IGqlSender {}
 
-#[wasm_bindgen]
-pub struct GqlQuery {
-    #[wasm_bindgen(skip)]
-    pub tx: oneshot::Sender<GqlQueryResult>,
-}
-
-#[wasm_bindgen]
-impl GqlQuery {
-    #[wasm_bindgen(js_name = "onReceive")]
-    pub fn on_receive(self, data: String) {
-        let _ = self.tx.send(Ok(data));
+#[async_trait::async_trait(?Send)]
+impl nt::external::GqlConnection for IGqlSender {
+    fn is_local(&self) -> bool {
+        self.is_local()
     }
 
-    #[wasm_bindgen(js_name = "onError")]
-    pub fn on_error(self, _: JsValue) {
-        let _ = self.tx.send(Err(GqlQueryError::RequestFailed));
-    }
+    async fn post(&self, req: nt::external::GqlRequest) -> Result<String> {
+        let (tx, rx) = oneshot::channel();
 
-    #[wasm_bindgen(js_name = "onTimeout")]
-    pub fn on_timeout(self) {
-        let _ = self.tx.send(Err(GqlQueryError::TimeoutReached));
+        self.send(&req.data, StringQuery { tx }, req.long_query);
+        drop(req);
+
+        let response = rx.await.unwrap_or(Err(QueryError::RequestDropped))?;
+        Ok(response)
     }
 }
-
-type GqlQueryResult = Result<String, GqlQueryError>;
-
-#[derive(thiserror::Error, Debug)]
-pub enum GqlQueryError {
-    #[error("Request dropped unexpectedly")]
-    RequestDropped,
-    #[error("Timeout reached")]
-    TimeoutReached,
-    #[error("Request failed")]
-    RequestFailed,
-}
-
-unsafe impl Send for JrpcSender {}
-unsafe impl Sync for JrpcSender {}
 
 #[wasm_bindgen]
 extern "C" {
-    pub type JrpcSender;
+    #[wasm_bindgen(typescript_type = "IJrpcSender")]
+    pub type IJrpcSender;
+
     #[wasm_bindgen(method)]
-    pub fn send(this: &JrpcSender, data: &str, query: JrpcQuery, requires_db: bool);
+    pub fn send(this: &IJrpcSender, data: &str, query: StringQuery, requires_db: bool);
 }
 
-#[derive(Clone)]
-pub struct JrpcConnector {
-    sender: Arc<JrpcSender>,
-}
+unsafe impl Send for IJrpcSender {}
+unsafe impl Sync for IJrpcSender {}
 
-impl JrpcConnector {
-    pub fn new(sender: JrpcSender) -> Self {
-        Self {
-            sender: Arc::new(sender),
-        }
+#[async_trait::async_trait(?Send)]
+impl nt::external::JrpcConnection for IJrpcSender {
+    async fn post(&self, req: nt::external::JrpcRequest) -> Result<String> {
+        let (tx, rx) = oneshot::channel();
+        let query = StringQuery { tx };
+        self.send(&req.data, query, req.requires_db);
+        drop(req);
+
+        Ok(rx.await.unwrap_or(Err(QueryError::RequestFailed))?)
     }
 }
 
 #[wasm_bindgen]
-pub struct JrpcQuery {
-    #[wasm_bindgen(skip)]
-    pub tx: oneshot::Sender<JrpcQueryResult>,
+extern "C" {
+    #[wasm_bindgen(typescript_type = "IProtoSender")]
+    pub type IProtoSender;
+
+    #[wasm_bindgen(method)]
+    pub fn send(this: &IProtoSender, data: &[u8], query: BytesQuery, requires_db: bool);
 }
 
-pub type JrpcQueryResult = Result<String, JrpcError>;
+unsafe impl Send for IProtoSender {}
+unsafe impl Sync for IProtoSender {}
 
-#[derive(thiserror::Error, Debug)]
-pub enum JrpcError {
-    #[error("Request dropped unexpectedly")]
-    RequestDropped,
-    #[error("Timeout reached")]
-    TimeoutReached,
-    #[error("Request failed")]
-    RequestFailed,
+#[async_trait::async_trait(?Send)]
+impl nt::external::ProtoConnection for IProtoSender {
+    async fn post(&self, req: nt::external::ProtoRequest) -> Result<Vec<u8>> {
+        let (tx, rx) = oneshot::channel();
+        let query = BytesQuery { tx };
+        self.send(&req.data, query, req.requires_db);
+        drop(req);
+
+        Ok(rx.await.unwrap_or(Err(QueryError::RequestFailed))?)
+    }
 }
 
 #[wasm_bindgen]
-impl JrpcQuery {
+pub struct BytesQuery {
+    #[wasm_bindgen(skip)]
+    pub tx: oneshot::Sender<BytesQueryResult>,
+}
+
+pub type BytesQueryResult = Result<Vec<u8>, QueryError>;
+
+#[wasm_bindgen]
+impl BytesQuery {
+    #[wasm_bindgen(js_name = "onReceive")]
+    pub fn on_receive(self, data: Vec<u8>) {
+        let _ = self.tx.send(Ok(data));
+    }
+
+    #[wasm_bindgen(js_name = "onError")]
+    pub fn on_error(self, _: JsValue) {
+        let _ = self.tx.send(Err(QueryError::RequestFailed));
+    }
+
+    #[wasm_bindgen(js_name = "onTimeout")]
+    pub fn on_timeout(self) {
+        let _ = self.tx.send(Err(QueryError::TimeoutReached));
+    }
+}
+
+#[wasm_bindgen]
+pub struct StringQuery {
+    #[wasm_bindgen(skip)]
+    pub tx: oneshot::Sender<StringQueryResult>,
+}
+
+pub type StringQueryResult = Result<String, QueryError>;
+
+#[wasm_bindgen]
+impl StringQuery {
     #[wasm_bindgen(js_name = "onReceive")]
     pub fn on_receive(self, data: String) {
         let _ = self.tx.send(Ok(data));
@@ -142,25 +141,23 @@ impl JrpcQuery {
 
     #[wasm_bindgen(js_name = "onError")]
     pub fn on_error(self, _: JsValue) {
-        let _ = self.tx.send(Err(JrpcError::RequestFailed));
+        let _ = self.tx.send(Err(QueryError::RequestFailed));
     }
 
     #[wasm_bindgen(js_name = "onTimeout")]
     pub fn on_timeout(self) {
-        let _ = self.tx.send(Err(JrpcError::TimeoutReached));
+        let _ = self.tx.send(Err(QueryError::TimeoutReached));
     }
 }
 
-#[async_trait::async_trait(?Send)]
-impl nt::external::JrpcConnection for JrpcConnector {
-    async fn post(&self, req: nt::external::JrpcRequest) -> Result<String> {
-        let (tx, rx) = oneshot::channel();
-        let query = JrpcQuery { tx };
-        self.sender.send(&req.data, query, req.requires_db);
-        drop(req);
-
-        Ok(rx.await.unwrap_or(Err(JrpcError::RequestFailed))?)
-    }
+#[derive(thiserror::Error, Debug)]
+pub enum QueryError {
+    #[error("Request dropped unexpectedly")]
+    RequestDropped,
+    #[error("Timeout reached")]
+    TimeoutReached,
+    #[error("Request failed")]
+    RequestFailed,
 }
 
 #[wasm_bindgen(typescript_custom_section)]

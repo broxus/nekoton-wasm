@@ -2,18 +2,18 @@ use std::sync::Arc;
 
 use wasm_bindgen::prelude::*;
 
-use crate::external::IJrpcSender;
+use crate::external::IProtoSender;
 
 #[wasm_bindgen]
-pub struct JrpcConnection {
+pub struct ProtoConnection {
     #[wasm_bindgen(skip)]
-    pub inner: Arc<IJrpcSender>,
+    pub inner: Arc<IProtoSender>,
 }
 
 #[wasm_bindgen]
-impl JrpcConnection {
+impl ProtoConnection {
     #[wasm_bindgen(constructor)]
-    pub fn new(sender: IJrpcSender) -> Self {
+    pub fn new(sender: IProtoSender) -> Self {
         Self {
             inner: Arc::new(sender),
         }
