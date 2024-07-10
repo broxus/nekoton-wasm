@@ -86,7 +86,7 @@ pub fn make_full_account_boc(account_stuff_boc: Option<String>) -> Result<String
 
 #[wasm_bindgen(js_name = "parseMessageBase64")]
 pub fn parse_message_base64(message: &str) -> Result<Message, JsValue> {
-    let nt_msg = nt::core::models::Message::try_from(parse_cell(&message)?).handle_error()?;
+    let nt_msg = nt::core::models::Message::try_from(parse_cell(message)?).handle_error()?;
     serde_wasm_bindgen::to_value(&nt_msg)
         .handle_error()
         .map(JsValue::unchecked_into)
@@ -272,6 +272,7 @@ pub fn execute_local(
         .unchecked_into())
 }
 
+#[allow(clippy::too_many_arguments)]
 #[wasm_bindgen(js_name = "executeLocalExtended")]
 pub fn execute_local_extended(
     config: &str,
@@ -354,7 +355,7 @@ pub fn execute_local_extended(
                 ton_block::Account::construct_from_cell(account.clone()).handle_error()?;
             let lt = std::cmp::max(
                 raw_acc.last_tr_time().unwrap_or_default(),
-                std::cmp::max(message.lt().unwrap_or(0) + 1, last_trans_lt + 1)
+                std::cmp::max(message.lt().unwrap_or(0) + 1, last_trans_lt + 1),
             );
             raw_acc.set_last_tr_time(lt);
             let mut transaction =
@@ -363,13 +364,17 @@ pub fn execute_local_extended(
             account = raw_acc.serialize().handle_error()?;
 
             transaction.set_now(utime);
-            let mut description = TransactionDescrOrdinary::default();
-            description.aborted = true;
+            let mut description = TransactionDescrOrdinary {
+                aborted: true,
+                ..Default::default()
+            };
             match e.downcast_ref::<ton_executor::ExecutorError>() {
                 Some(ton_executor::ExecutorError::NoAcceptError(error, arg)) => {
-                    let mut vm_phase = ton_block::TrComputePhaseVm::default();
-                    vm_phase.success = false;
-                    vm_phase.exit_code = *error;
+                    let mut vm_phase = ton_block::TrComputePhaseVm {
+                        success: false,
+                        exit_code: *error,
+                        ..Default::default()
+                    };
                     if let Some(item) = arg {
                         vm_phase.exit_arg = match item
                             .as_integer()

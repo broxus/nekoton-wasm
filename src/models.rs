@@ -515,7 +515,6 @@ pub fn make_raw_message(raw: ton_types::Cell) -> JsRawMessage {
     } else {
         None
     };
-    let lt = data.lt();
 
     ObjectBuilder::new()
         .set("hash", hash.to_hex_string())
@@ -529,7 +528,7 @@ pub fn make_raw_message(raw: ton_types::Cell) -> JsRawMessage {
         .set("boc", make_boc(&raw).expect("Shouldn't fail"))
         .set("init", init)
         .set("msgType", common.msg_type)
-        .set("lt", lt)
+        .set("lt", data.lt().map(|t| t.to_string()))
         .build()
         .unchecked_into()
 }
@@ -620,13 +619,7 @@ pub fn make_raw_transaction(
         .unwrap();
     let boc = base64::encode(boc);
 
-    let in_msg = {
-        if let Some(msg) = &data.in_msg.map(|in_msg| in_msg.cell()) {
-            Some(make_raw_message(msg.clone()))
-        } else {
-            None
-        }
-    };
+    let in_msg = data.in_msg.map(|in_msg| make_raw_message(in_msg.cell()));
 
     let mut out_messages = vec![];
     data.out_msgs
@@ -640,19 +633,18 @@ pub fn make_raw_transaction(
 
     let out_msgs = out_messages
         .into_iter()
-        .map(|msg| make_raw_message(msg))
+        .map(make_raw_message)
         .collect::<js_sys::Array>();
 
-    let desc = if let Some(ton_block::TransactionDescr::Ordinary(desc)) =
-        data.description.read_struct().ok()
-    {
-        Some(make_raw_description(desc))
-    } else {
-        None
-    };
+    let desc =
+        if let Ok(ton_block::TransactionDescr::Ordinary(desc)) = data.description.read_struct() {
+            Some(make_raw_description(desc))
+        } else {
+            None
+        };
 
     ObjectBuilder::new()
-        .set("lt", data.lt)
+        .set("lt", data.lt.to_string())
         .set("hash", hex::encode(hash.as_slice()))
         .set("prevTransLt", data.prev_trans_lt)
         .set(
@@ -695,22 +687,18 @@ pub fn make_raw_description(desc: ton_block::TransactionDescrOrdinary) -> JsValu
     };
 
     let aborted = desc.aborted;
-    let bounce = if let Some(b) = desc.bounce {
-        Some(match b {
-            TrBouncePhase::Negfunds => ObjectBuilder::new().set("status", "negFunds").build(),
-            TrBouncePhase::Nofunds(f) => ObjectBuilder::new()
-                .set("status", "noFunds")
-                .set("reqFwdFees", f.req_fwd_fees.as_u128().to_string())
-                .build(),
-            TrBouncePhase::Ok(f) => ObjectBuilder::new()
-                .set("status", "ok")
-                .set("msgFees", f.msg_fees.as_u128().to_string())
-                .set("fwdFees", f.fwd_fees.as_u128().to_string())
-                .build(),
-        })
-    } else {
-        None
-    };
+    let bounce = desc.bounce.map(|b| match b {
+        TrBouncePhase::Negfunds => ObjectBuilder::new().set("status", "negFunds").build(),
+        TrBouncePhase::Nofunds(f) => ObjectBuilder::new()
+            .set("status", "noFunds")
+            .set("reqFwdFees", f.req_fwd_fees.as_u128().to_string())
+            .build(),
+        TrBouncePhase::Ok(f) => ObjectBuilder::new()
+            .set("status", "ok")
+            .set("msgFees", f.msg_fees.as_u128().to_string())
+            .set("fwdFees", f.fwd_fees.as_u128().to_string())
+            .build(),
+    });
     let storage = if let Some(b) = desc.storage_ph {
         Some(
             ObjectBuilder::new()
@@ -1113,7 +1101,7 @@ pub fn make_engine_trace(engine_trace: &EngineTraceInfoData) -> Result<EngineTra
     let stack = engine_trace
         .stack
         .iter()
-        .map(|s| JsValue::from(s))
+        .map(JsValue::from)
         .collect::<js_sys::Array>();
     Ok(ObjectBuilder::new()
         .set("infoType", engine_trace.info_type.clone())
