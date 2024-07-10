@@ -106,7 +106,7 @@ impl Transport for ProxyTransport {
         let addresses = self
             .connection
             .get_accounts_by_code_hash(
-                &code_hash.to_string(),
+                &code_hash.to_hex_string(),
                 limit,
                 continuation.as_ref().map(|addr| addr.to_string()),
             )

@@ -116,7 +116,7 @@ export type JsRawMessage = {
     codeHash: string
   },
   msgType: MessageType,
-  lt?: number
+  lt?: string,
 };
 
 export type TransactionComputeType = 'vm' | 'skipped';
@@ -134,10 +134,10 @@ export type TrComputeVm = {
   exitCode: number,
   msgStateUsed: boolean,
   accountActivated: boolean,
-  gasFees: number,
-  gasUsed: number,
-  gasLimit: number,
-  gasCredit: number,
+  gasFees: string,
+  gasUsed: string,
+  gasLimit: string,
+  gasCredit: string,
   mode: number,
   exitArg: undefined | number,
   vmSteps: number
@@ -147,8 +147,8 @@ export type TrAction = {
   success: boolean,
   valid: boolean,
   noFunds: boolean,
-  totalFwdFees: number,
-  totalActionFees: number,
+  totalFwdFees: string,
+  totalActionFees: string,
   resultArg: number,
   totActions: number,
   specActions: number,
@@ -157,9 +157,9 @@ export type TrAction = {
 }
 
 export type JsRawTransaction = {
-  lt: bigint,
+  lt: string,
   hash: string,
-  prevTransLt: bigint,
+  prevTransLt: string,
   prevTransHash: string,
   now: number,
   accountAddr: string,
@@ -170,17 +170,17 @@ export type JsRawTransaction = {
     bounce: undefined |
       {
         status: 'ok'
-        msgFees: number,
-        fwdFees: number
+        msgFees: string,
+        fwdFees: string
       } | {
         status: 'noFunds'
-        reqFwdFees: number
+        reqFwdFees: string
       } | {
         status: 'negFunds'
       },
     storage: {
-      storageFeesCollected: number,
-      storageFeesDue: undefined | number,
+      storageFeesCollected: string,
+      storageFeesDue: undefined | string,
       statusChange: TransactionStorageStatusChange
     },
     action: TrAction | undefined,
@@ -188,7 +188,7 @@ export type JsRawTransaction = {
   },
   origStatus: AccountStatus,
   endStatus: AccountStatus,
-  totalFees: number,
+  totalFees: string,
   inMessage: JsRawMessage,
   outMessages: JsRawMessage[],
   boc: string,
@@ -646,7 +646,7 @@ pub fn make_raw_transaction(
     ObjectBuilder::new()
         .set("lt", data.lt.to_string())
         .set("hash", hex::encode(hash.as_slice()))
-        .set("prevTransLt", data.prev_trans_lt)
+        .set("prevTransLt", data.prev_trans_lt.to_string())
         .set(
             "prevTransHash",
             hex::encode(data.prev_trans_hash.as_slice()),
