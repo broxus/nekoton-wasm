@@ -750,7 +750,7 @@ dependencies = [
 
 [[package]]
 name = "nekoton-wasm-locklift"
-version = "1.21.1"
+version = "1.21.2"
 dependencies = [
  "anyhow",
  "async-trait",
