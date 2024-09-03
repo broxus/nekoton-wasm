@@ -23,7 +23,7 @@ pub enum TransportHandle {
 }
 
 impl TransportHandle {
-    pub async fn get_block(&self, block_id: &str) -> Result<ton_block::Block, JsValue> {
+    pub async fn get_block(&self, block_id: &str) -> Result<Vec<u8>, JsValue> {
         match self {
             Self::GraphQl(transport) => transport.get_block(block_id).await.handle_error(),
             _ => Err(TransportError::MethodNotSupported).handle_error(),

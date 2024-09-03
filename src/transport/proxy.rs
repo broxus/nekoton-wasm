@@ -7,7 +7,7 @@ use nt::core::models::NetworkCapabilities;
 use nt::transport::models::{PollContractState, RawContractState, RawTransaction};
 use nt::transport::{Transport, TransportInfo};
 use nt::utils::Clock;
-use ton_block::{Block, Deserializable, MsgAddressInt, Serializable};
+use ton_block::{Deserializable, MsgAddressInt, Serializable};
 use wasm_bindgen::prelude::*;
 
 use crate::external::IProxyConnector;
@@ -183,7 +183,7 @@ impl Transport for ProxyTransport {
             .transpose()
     }
 
-    async fn get_latest_key_block(&self) -> Result<Block> {
+    async fn get_latest_key_block(&self) -> Result<Vec<u8>> {
         let latest_key_block = self
             .connection
             .get_latest_key_block()
@@ -192,7 +192,7 @@ impl Transport for ProxyTransport {
             .as_string()
             .context("Expected a string with base64 encoded key block")?;
 
-        ton_block::Block::construct_from_base64(&latest_key_block)
+        Ok(base64::decode(latest_key_block)?)
     }
 
     async fn get_capabilities(&self, clock: &dyn Clock) -> Result<NetworkCapabilities> {

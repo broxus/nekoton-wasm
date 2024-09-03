@@ -47,7 +47,7 @@ ton_executor = { git = "https://github.com/broxus/ton-labs-executor.git" }
 
 [dependencies.nt]
 package = "nekoton"
-git = "https://github.com/broxus/nekoton.git"
+git = "https://github.com/everx-labs/broxus-nekoton.git"
 branch = "master"
 features = ["web", "gql_transport", "jrpc_transport", "proto_transport", "extended_models", "non_threadsafe"]
 
