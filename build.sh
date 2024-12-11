@@ -62,7 +62,7 @@ fi
 cp "pkg-node/${BASE_NAME}.js" "pkg/${BASE_NAME}_main.js"
 cp "pkg-node/${BASE_NAME}.d.ts" "pkg/${BASE_NAME}_main.d.ts"
 
-sed -i "s/__wbindgen_placeholder__/wbg/g" "pkg/${BASE_NAME}_main.js"
+sed -i '' "s/__wbindgen_placeholder__/wbg/g" "pkg/${BASE_NAME}_main.js"
 
 PACKAGE_JSON=$(
     jq ".name = \"$PKG_NAME\" | .main = \"${BASE_NAME}_main.js\" | .browser = \"${BASE_NAME}.js\"" \

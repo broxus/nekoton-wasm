@@ -7,7 +7,7 @@ use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 
 use ed25519_dalek::{Signer, Verifier};
-use nt::abi::FunctionExt;
+use nt::abi::{FunctionExt, StackItem};
 use nt::utils::Clock;
 use num_traits::CheckedSub;
 use ton_block::{Deserializable, GetRepresentationHash, Serializable};
@@ -71,6 +71,42 @@ pub fn run_local(
         .handle_error()?;
 
     make_execution_output(output)
+}
+
+#[wasm_bindgen(js_name = "runGetter")]
+pub fn run_getter(
+    clock: &ClockWithOffset,
+    account_stuff_boc: &str,
+    method: &str,
+    input_params: ParamsList,
+    output_params: ParamsList,
+    tokens: TokensObject,
+    signature_id: Option<i32>,
+) -> Result<VmGetterOutput, JsValue> {
+    let account_stuff = parse_account_stuff(account_stuff_boc)?;
+    let input_params = parse_params_list(input_params).handle_error()?;
+    let output_params = parse_params_list(output_params).handle_error()?;
+    let tokens = parse_tokens_object(&input_params, tokens).handle_error()?;
+
+    let args = tokens
+        .into_iter()
+        .map(|token| make_stack_item(token.value))
+        .collect::<Result<Vec<StackItem>, JsValue>>()?;
+
+    let mut config = nt::abi::BriefBlockchainConfig::default();
+    if let Some(signature_id) = signature_id {
+        config.global_id = signature_id;
+        config.capabilities |= ton_block::GlobalCapabilities::CapSignatureWithId as u64;
+    }
+
+    let res = nt::abi::ExecutionContext {
+        clock: clock.inner.as_ref(),
+        account_stuff: &account_stuff,
+    }
+    .run_getter_ext(method, &args, &config, &Default::default())
+    .unwrap();
+
+    make_vm_getter_output(&output_params, res)
 }
 
 #[wasm_bindgen(js_name = "makeFullAccountBoc")]
