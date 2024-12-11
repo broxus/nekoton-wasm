@@ -592,16 +592,16 @@ pub fn parse_param_type(kind: &str) -> Result<ton_abi::ParamType, TokensJsonErro
 pub fn make_stack_item(value: ton_abi::TokenValue) -> Result<StackItem, JsValue> {
     let result = match value {
         ton_abi::TokenValue::Uint(value) => StackItem::integer(
-            IntegerData::from(value.number).map_err(|e| JsValue::from_str(&e.to_string()))?,
+            IntegerData::from(value.number).handle_error()?,
         ),
         ton_abi::TokenValue::Int(value) => StackItem::integer(
-            IntegerData::from(value.number).map_err(|e| JsValue::from_str(&e.to_string()))?,
+            IntegerData::from(value.number).handle_error()?,
         ),
         ton_abi::TokenValue::VarInt(_, value) => StackItem::integer(
-            IntegerData::from(value).map_err(|e| JsValue::from_str(&e.to_string()))?,
+            IntegerData::from(value).handle_error()?,
         ),
         ton_abi::TokenValue::VarUint(_, value) => StackItem::integer(
-            IntegerData::from(value).map_err(|e| JsValue::from_str(&e.to_string()))?,
+            IntegerData::from(value).handle_error()?,
         ),
         ton_abi::TokenValue::Bool(value) => StackItem::boolean(value),
         ton_abi::TokenValue::Tuple(tokens) => StackItem::tuple(
@@ -681,12 +681,10 @@ pub fn map_stack_item(value: &StackItem) -> Result<ton_abi::TokenValue, JsValue>
         StackItem::Cell(value) => ton_abi::TokenValue::Cell(value.clone()),
         StackItem::Slice(value) => ton_abi::TokenValue::Cell(value.clone().into_cell()),
         StackItem::Builder(arc) => ton_abi::TokenValue::Cell(
-            arc.as_ref().clone().into_cell()
-                .map_err(|e| JsValue::from_str(&e.to_string()))?,
+            arc.as_ref().clone().into_cell().handle_error()?,
         ),
         StackItem::Continuation(arc) => ton_abi::TokenValue::Cell(
-            arc.as_ref().clone().drain_reference()
-                .map_err(|e| JsValue::from_str(&e.to_string()))?,
+            arc.as_ref().clone().drain_reference().handle_error()?,
         ),
     };
 
