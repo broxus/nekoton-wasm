@@ -44,6 +44,7 @@ ton_abi = { git = "https://github.com/broxus/ton-labs-abi.git" }
 ton_block = { git = "https://github.com/broxus/ton-labs-block.git", features = ["venom"] }
 ton_types = { git = "https://github.com/broxus/ton-labs-types.git" }
 ton_executor = { git = "https://github.com/broxus/ton-labs-executor.git" }
+ton_vm = { git = "https://github.com/broxus/ton-labs-vm.git" }
 
 [dependencies.nt]
 package = "nekoton"

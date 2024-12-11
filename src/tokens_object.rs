@@ -1,10 +1,12 @@
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
+use nt::abi::StackItem;
 use nt::utils::*;
 use num_bigint::{BigInt, BigUint};
 use num_traits::Num;
 use ton_block::Serializable;
+use ton_vm::stack::integer::IntegerData;
 use wasm_bindgen::{JsCast, JsValue};
 
 use crate::models::*;
@@ -582,6 +584,110 @@ pub fn parse_param_type(kind: &str) -> Result<ton_abi::ParamType, TokensJsonErro
             ton_abi::ParamType::Ref(Box::new(inner_type))
         }
         _ => return Err(TokensJsonError::ParamTypeExpected),
+    };
+
+    Ok(result)
+}
+
+pub fn make_stack_item(value: ton_abi::TokenValue) -> Result<StackItem, JsValue> {
+    let result = match value {
+        ton_abi::TokenValue::Uint(value) => StackItem::integer(
+            IntegerData::from(value.number).map_err(|e| JsValue::from_str(&e.to_string()))?,
+        ),
+        ton_abi::TokenValue::Int(value) => StackItem::integer(
+            IntegerData::from(value.number).map_err(|e| JsValue::from_str(&e.to_string()))?,
+        ),
+        ton_abi::TokenValue::VarInt(_, value) => StackItem::integer(
+            IntegerData::from(value).map_err(|e| JsValue::from_str(&e.to_string()))?,
+        ),
+        ton_abi::TokenValue::VarUint(_, value) => StackItem::integer(
+            IntegerData::from(value).map_err(|e| JsValue::from_str(&e.to_string()))?,
+        ),
+        ton_abi::TokenValue::Bool(value) => StackItem::boolean(value),
+        ton_abi::TokenValue::Tuple(tokens) => StackItem::tuple(
+            tokens
+                .into_iter()
+                .map(|token| make_stack_item(token.value))
+                .collect::<Result<_, _>>()?,
+        ),
+        ton_abi::TokenValue::Array(_, values) | ton_abi::TokenValue::FixedArray(_, values) => {
+            StackItem::tuple(
+                values
+                    .into_iter()
+                    .map(|value| make_stack_item(value))
+                    .collect::<Result<_, _>>()?,
+            )
+        }
+        ton_abi::TokenValue::Cell(value) => StackItem::cell(value),
+        ton_abi::TokenValue::Address(value) => StackItem::slice(value.get_address()),
+        ton_abi::TokenValue::String(value) => {
+            let cell = ton_types::BuilderData::new()
+                .append_raw(value.as_bytes(), value.len() * 8)
+                .trust_me()
+                .clone()
+                .into_cell()
+                .handle_error()?;
+            StackItem::cell(cell)
+        }
+        ton_abi::TokenValue::Token(value) => StackItem::integer(value.as_u128().into()),
+        ton_abi::TokenValue::Time(value) => StackItem::integer(value.into()),
+        ton_abi::TokenValue::Expire(value) => StackItem::integer(value.into()),
+        ton_abi::TokenValue::PublicKey(value) => {
+            let cell = if let Some(public_key) = value {
+                let mut builder = ton_types::BuilderData::new();
+                builder.append_raw(public_key.as_bytes(), 256).trust_me();
+                builder.into_cell().handle_error()?
+            } else {
+                ton_types::Cell::default()
+            };
+            StackItem::cell(cell)
+        }
+        ton_abi::TokenValue::Optional(_, value) => match value {
+            Some(value) => make_stack_item(*value)?,
+            None => StackItem::default(),
+        },
+        ton_abi::TokenValue::Ref(value) => make_stack_item(*value)?,
+        _ => return Err("Unsupported value type").handle_error(),
+    };
+
+    Ok(result)
+}
+
+pub fn map_stack_item(value: &StackItem) -> Result<ton_abi::TokenValue, JsValue> {
+    let result = match value {
+        StackItem::None => ton_abi::TokenValue::Tuple(Vec::new()),
+        StackItem::Integer(value) => {
+            ton_vm::stack::integer::utils::process_value(&value, |bigint| {
+                Ok(ton_abi::TokenValue::Int(ton_abi::Int {
+                    number: bigint.clone(),
+                    size: 257,
+                }))
+            })
+            .handle_error()?
+        }
+        StackItem::Tuple(values) => {
+            let values = values
+                .iter()
+                .enumerate()
+                .map(|(i, value)| {
+                    map_stack_item(&value).map(|value| ton_abi::Token {
+                        name: format!("item{}", i),
+                        value,
+                    })
+                })
+                .collect::<Result<_, _>>()?;
+            ton_abi::TokenValue::Tuple(values)
+        }
+        StackItem::Cell(value) => ton_abi::TokenValue::Cell(value.clone()),
+        StackItem::Slice(value) => ton_abi::TokenValue::Cell(value.clone().into_cell()),
+        StackItem::Builder(arc) => ton_abi::TokenValue::Cell(
+            arc.as_ref().clone().into_cell()
+                .map_err(|e| JsValue::from_str(&e.to_string()))?,
+        ),
+        StackItem::Continuation(arc) => ton_abi::TokenValue::Cell(
+            arc.as_ref().clone().drain_reference()
+                .map_err(|e| JsValue::from_str(&e.to_string()))?,
+        ),
     };
 
     Ok(result)

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::convert::TryFrom;
 
+use nt::abi;
 use nt::core::models;
 
 use ton_block::{Deserializable, Serializable};
@@ -230,6 +231,12 @@ export type StorageFeeInfo = {
     accountStatus: AccountStatus;
     freezeDueLimit: string;
     deleteDueLimit: string;
+};
+
+export type VmGetterOutput = {
+    stack: any[],
+    exitCode: number,
+    isOk: boolean,
 };
 "#;
 
@@ -711,6 +718,22 @@ pub fn serialize_into_boc_with_hash(data: &dyn Serializable) -> Result<BocWithHa
     make_boc_with_hash(cell)
 }
 
+pub fn make_vm_getter_output(data: abi::VmGetterOutput) -> Result<VmGetterOutput, JsValue> {
+    Ok(ObjectBuilder::new()
+        .set(
+            "output",
+            data.stack
+                .iter()
+                .map(map_stack_item)
+                .map(|value| make_token_value(value.unwrap()))
+                .collect::<Result<js_sys::Array, _>>()?,
+        )
+        .set("exitCode", data.exit_code)
+        .set("isOk", data.is_ok)
+        .build()
+        .unchecked_into())
+}
+
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(typescript_type = "TransactionId")]
@@ -850,4 +873,7 @@ extern "C" {
 
     #[wasm_bindgen(typescript_type = "TransactionTree")]
     pub type JsTransactionTree;
+
+    #[wasm_bindgen(typescript_type = "VmGetterOutput")]
+    pub type VmGetterOutput;
 }
