@@ -78,13 +78,15 @@ pub fn run_getter(
     clock: &ClockWithOffset,
     account_stuff_boc: &str,
     method: &str,
-    params: ParamsList,
+    input_params: ParamsList,
+    output_params: ParamsList,
     tokens: TokensObject,
     signature_id: Option<i32>,
 ) -> Result<VmGetterOutput, JsValue> {
     let account_stuff = parse_account_stuff(account_stuff_boc)?;
-    let params = parse_params_list(params).handle_error()?;
-    let tokens = parse_tokens_object(&params, tokens).handle_error()?;
+    let input_params = parse_params_list(input_params).handle_error()?;
+    let output_params = parse_params_list(output_params).handle_error()?;
+    let tokens = parse_tokens_object(&input_params, tokens).handle_error()?;
 
     let args = tokens
         .into_iter()
@@ -104,7 +106,7 @@ pub fn run_getter(
     .run_getter_ext(method, &args, &config, &Default::default())
     .unwrap();
 
-    make_vm_getter_output(res)
+    make_vm_getter_output(&output_params, res)
 }
 
 #[wasm_bindgen(js_name = "makeFullAccountBoc")]

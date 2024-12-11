@@ -620,7 +620,7 @@ pub fn make_stack_item(value: ton_abi::TokenValue) -> Result<StackItem, JsValue>
         }
         ton_abi::TokenValue::Cell(value) => StackItem::cell(value),
         ton_abi::TokenValue::Address(value) => StackItem::Slice(
-            ton_types::SliceData::load_cell(value.serialize().handle_error()?).handle_error()?
+            ton_types::SliceData::load_cell(value.serialize().handle_error()?).handle_error()?,
         ),
         ton_abi::TokenValue::String(value) => {
             let cell = ton_types::BuilderData::new()
@@ -655,7 +655,10 @@ pub fn make_stack_item(value: ton_abi::TokenValue) -> Result<StackItem, JsValue>
     Ok(result)
 }
 
-pub fn map_stack_item(value: &StackItem) -> Result<ton_abi::TokenValue, JsValue> {
+pub fn map_stack_item(
+    param: &ton_abi::Param,
+    value: &StackItem,
+) -> Result<ton_abi::TokenValue, JsValue> {
     let result = match value {
         StackItem::None => ton_abi::TokenValue::Tuple(Vec::new()),
         StackItem::Integer(value) => {
@@ -667,28 +670,59 @@ pub fn map_stack_item(value: &StackItem) -> Result<ton_abi::TokenValue, JsValue>
             })
             .handle_error()?
         }
-        StackItem::Tuple(values) => {
-            let values = values
-                .iter()
-                .enumerate()
-                .map(|(i, value)| {
-                    map_stack_item(&value).map(|value| ton_abi::Token {
-                        name: format!("item{}", i),
-                        value,
+        StackItem::Tuple(values) => match &param.kind {
+            ton_abi::ParamType::Tuple(params) => {
+                if values.len() != params.len() {
+                    return Err(TokensJsonError::ParameterCountMismatch).handle_error();
+                }
+
+                let values = values
+                    .iter()
+                    .zip(params)
+                    .map(|(value, param)| {
+                        map_stack_item(&param, value).map(|token_value| ton_abi::Token {
+                            name: param.name.clone(),
+                            value: token_value,
+                        })
                     })
-                })
-                .collect::<Result<_, _>>()?;
-            ton_abi::TokenValue::Tuple(values)
+                    .collect::<Result<Vec<_>, _>>()?;
+
+                ton_abi::TokenValue::Tuple(values)
+            }
+            _ => return Err(TokensJsonError::ArrayExpected).handle_error(),
+        },
+        StackItem::Cell(value) => {
+            let slice = ton_types::SliceData::load_cell(value.clone()).handle_error()?;
+            read_token_value(&param.kind, slice).handle_error()?
         }
-        StackItem::Cell(value) => ton_abi::TokenValue::Cell(value.clone()),
-        StackItem::Slice(value) => ton_abi::TokenValue::Cell(value.clone().into_cell()),
+        StackItem::Slice(value) => read_token_value(&param.kind, value.clone()).handle_error()?,
         StackItem::Builder(arc) => {
-            ton_abi::TokenValue::Cell(arc.as_ref().clone().into_cell().handle_error()?)
+            let cell = arc.as_ref().clone().into_cell().handle_error()?;
+            let slice = ton_types::SliceData::load_cell(cell).handle_error()?;
+
+            read_token_value(&param.kind, slice).handle_error()?
         }
         StackItem::Continuation(arc) => {
-            ton_abi::TokenValue::Cell(arc.as_ref().clone().drain_reference().handle_error()?)
+            let cell = arc.as_ref().clone().drain_reference().handle_error()?;
+            let slice = ton_types::SliceData::load_cell(cell).handle_error()?;
+
+            read_token_value(&param.kind, slice).handle_error()?
         }
     };
 
     Ok(result)
+}
+
+pub fn read_token_value(
+    param: &ton_abi::ParamType,
+    slice: ton_types::SliceData,
+) -> Result<ton_abi::TokenValue, anyhow::Error> {
+    ton_abi::TokenValue::read_from(
+        &param,
+        slice,
+        true,
+        &ton_abi::contract::ABI_VERSION_2_1,
+        true,
+    )
+    .map(|(value, _)| value)
 }
