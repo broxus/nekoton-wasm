@@ -665,7 +665,7 @@ pub fn map_stack_item(
             ton_vm::stack::integer::utils::process_value(&value, |bigint| {
                 Ok(ton_abi::TokenValue::Int(ton_abi::Int {
                     number: bigint.clone(),
-                    size: 256,
+                    size: 257,
                 }))
             })
             .handle_error()?
