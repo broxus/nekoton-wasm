@@ -1,6 +1,6 @@
 [package]
 name = "nekoton-wasm"
-version = "1.5.2"
+version = "1.5.3"
 edition = "2021"
 authors = ["Ivan Kalinin <i.kalinin@dexpa.io>"]
 repository = "https://github.com/broxus/nekoton-wasm"
