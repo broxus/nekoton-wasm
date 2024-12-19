@@ -109,6 +109,19 @@ pub fn run_getter(
     make_vm_getter_output(&output_params, res)
 }
 
+#[wasm_bindgen(js_name = "getJettonWalletData")]
+pub fn get_jetton_wallet_data(account_stuff_boc: &str) -> Result<JettonWalletData, JsValue> {
+    let account_stuff = parse_account_stuff(account_stuff_boc)?;
+    let data = nt::core::jetton_wallet::get_wallet_data(account_stuff).handle_error()?;
+
+    Ok(ObjectBuilder::new()
+        .set("balance", data.balance.to_string())
+        .set("owner", data.owner_address.to_string())
+        .set("root", data.root_address.to_string())
+        .build()
+        .unchecked_into())
+}
+
 #[wasm_bindgen(js_name = "makeFullAccountBoc")]
 pub fn make_full_account_boc(account_stuff_boc: Option<String>) -> Result<String, JsValue> {
     let account = match account_stuff_boc {

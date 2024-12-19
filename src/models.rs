@@ -238,6 +238,13 @@ export type VmGetterOutput = {
     exitCode: number,
     isOk: boolean,
 };
+
+export type JettonWalletData = {
+  balance: string;
+  owner: string;
+  root: string;
+  code: string;
+};
 "#;
 
 // TODO: add zerostate hash
@@ -731,7 +738,8 @@ pub fn make_vm_getter_output(
             return Err(TokensJsonError::ParameterCountMismatch).handle_error();
         }
 
-        let tokens = data.stack
+        let tokens = data
+            .stack
             .iter()
             .zip(params)
             .map(|(value, param)| {
@@ -891,4 +899,7 @@ extern "C" {
 
     #[wasm_bindgen(typescript_type = "VmGetterOutput")]
     pub type VmGetterOutput;
+
+    #[wasm_bindgen(typescript_type = "JettonWalletData")]
+    pub type JettonWalletData;
 }
