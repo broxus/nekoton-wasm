@@ -14,6 +14,7 @@ use ton_block::{Deserializable, GetRepresentationHash, Serializable};
 use ton_executor::TransactionExecutor;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::{JsCast, JsValue};
+use wasm_bindgen_futures::future_to_promise;
 use zeroize::Zeroize;
 
 use crate::models::*;
@@ -110,16 +111,21 @@ pub fn run_getter(
 }
 
 #[wasm_bindgen(js_name = "getJettonWalletData")]
-pub fn get_jetton_wallet_data(account_stuff_boc: &str) -> Result<JettonWalletData, JsValue> {
+pub fn get_jetton_wallet_data(account_stuff_boc: &str) -> Result<PromiseJettonWalletData, JsValue> {
     let account_stuff = parse_account_stuff(account_stuff_boc)?;
-    let data = nt::core::jetton_wallet::get_wallet_data(account_stuff).handle_error()?;
 
-    Ok(ObjectBuilder::new()
-        .set("balance", data.balance.to_string())
-        .set("owner", data.owner_address.to_string())
-        .set("root", data.root_address.to_string())
-        .build()
-        .unchecked_into())
+    Ok(JsCast::unchecked_into(future_to_promise(async move {
+        let data = nt::core::jetton_wallet::get_wallet_data(account_stuff)
+            .await
+            .handle_error()?;
+
+        Ok(ObjectBuilder::new()
+            .set("balance", data.balance.to_string())
+            .set("owner", data.owner_address.to_string())
+            .set("root", data.root_address.to_string())
+            .build()
+            .unchecked_into())
+    })))
 }
 
 #[wasm_bindgen(js_name = "makeFullAccountBoc")]

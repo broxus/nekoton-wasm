@@ -902,4 +902,7 @@ extern "C" {
 
     #[wasm_bindgen(typescript_type = "JettonWalletData")]
     pub type JettonWalletData;
+
+    #[wasm_bindgen(typescript_type = "Promise<JettonWalletData>")]
+    pub type PromiseJettonWalletData;
 }
