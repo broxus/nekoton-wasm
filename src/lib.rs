@@ -19,6 +19,7 @@ use zeroize::Zeroize;
 
 use crate::models::*;
 use crate::tokens_object::*;
+use crate::transport::*;
 use crate::utils::*;
 
 mod external;
@@ -111,11 +112,15 @@ pub fn run_getter(
 }
 
 #[wasm_bindgen(js_name = "getJettonWalletData")]
-pub fn get_jetton_wallet_data(account_stuff_boc: &str) -> Result<PromiseJettonWalletData, JsValue> {
+pub fn get_jetton_wallet_data(
+    gql: &gql::GqlConnection,
+    account_stuff_boc: &str,
+) -> Result<PromiseJettonWalletData, JsValue> {
     let account_stuff = parse_account_stuff(account_stuff_boc)?;
 
+    let connection = gql.inner.clone();
     Ok(JsCast::unchecked_into(future_to_promise(async move {
-        let data = nt::core::jetton_wallet::get_wallet_data(account_stuff)
+        let data = nt::core::jetton_wallet::get_wallet_data(connection, account_stuff)
             .await
             .handle_error()?;
 
