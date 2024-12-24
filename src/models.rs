@@ -245,6 +245,14 @@ export type JettonWalletData = {
   root: string;
   code: string;
 };
+
+export type JettonTokenMeta = {
+  name: string;
+  symbol: string;
+  decimals: number;
+  baseChainId: string;
+  baseToken: string;
+};
 "#;
 
 // TODO: add zerostate hash
@@ -905,4 +913,7 @@ extern "C" {
 
     #[wasm_bindgen(typescript_type = "Promise<JettonWalletData>")]
     pub type PromiseJettonWalletData;
+
+    #[wasm_bindgen(typescript_type = "Promise<JettonTokenMeta>")]
+    pub type PromiseJettonTokenMeta;
 }

@@ -133,6 +133,30 @@ pub fn get_jetton_wallet_data(
     })))
 }
 
+#[wasm_bindgen(js_name = "getJettonTokenMeta")]
+pub fn get_jetton_token_meta(
+    gql: &gql::GqlConnection,
+    account_stuff_boc: &str,
+) -> Result<PromiseJettonTokenMeta, JsValue> {
+    let account_stuff = parse_account_stuff(account_stuff_boc)?;
+
+    let connection = gql.inner.clone();
+    Ok(JsCast::unchecked_into(future_to_promise(async move {
+        let data = nt::core::jetton_wallet::get_token_root_meta(connection, account_stuff)
+            .await
+            .handle_error()?;
+
+        Ok(ObjectBuilder::new()
+            .set("name", data.name)
+            .set("symbol", data.symbol)
+            .set("decimals", data.decimals)
+            .set("baseChainId", data.base_chain_id)
+            .set("baseToken", data.base_token)
+            .build()
+            .unchecked_into())
+    })))
+}
+
 #[wasm_bindgen(js_name = "makeFullAccountBoc")]
 pub fn make_full_account_boc(account_stuff_boc: Option<String>) -> Result<String, JsValue> {
     let account = match account_stuff_boc {
