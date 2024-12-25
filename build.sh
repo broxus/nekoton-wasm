@@ -46,28 +46,30 @@ if [ -d "pkg-node" ]; then
     rm -rf pkg-node
 fi
 
+wasm-pack build --release -t nodejs -d pkg
+
 # Build for both targets
-wasm-pack build --release -t nodejs -d pkg-node
-wasm-pack build --release -t web -d pkg
+# wasm-pack build --release -t nodejs -d pkg-node
+# wasm-pack build --release -t web -d pkg
 
-# Get the package name
-BASE_NAME=$(jq -r .name pkg/package.json | sed 's/\-/_/g')
+# # Get the package name
+# BASE_NAME=$(jq -r .name pkg/package.json | sed 's/\-/_/g')
 
-PKG_NAME=$(jq -r .name pkg/package.json)
-if [[ "$beta" == "true" ]]; then
-    PKG_NAME="$PKG_NAME-beta"
-fi
+# PKG_NAME=$(jq -r .name pkg/package.json)
+# if [[ "$beta" == "true" ]]; then
+#     PKG_NAME="$PKG_NAME-beta"
+# fi
 
-# Merge nodejs & browser packages
-cp "pkg-node/${BASE_NAME}.js" "pkg/${BASE_NAME}_main.js"
-cp "pkg-node/${BASE_NAME}.d.ts" "pkg/${BASE_NAME}_main.d.ts"
+# # Merge nodejs & browser packages
+# cp "pkg-node/${BASE_NAME}.js" "pkg/${BASE_NAME}_main.js"
+# cp "pkg-node/${BASE_NAME}.d.ts" "pkg/${BASE_NAME}_main.d.ts"
 
-sed -i -e "s/__wbindgen_placeholder__/wbg/g" "pkg/${BASE_NAME}_main.js"
+# sed -i -e "s/__wbindgen_placeholder__/wbg/g" "pkg/${BASE_NAME}_main.js"
 
-PACKAGE_JSON=$(
-    jq ".name = \"$PKG_NAME\" | .main = \"${BASE_NAME}_main.js\" | .browser = \"${BASE_NAME}.js\"" \
-    pkg/package.json
-)
-echo "$PACKAGE_JSON" > pkg/package.json
+# PACKAGE_JSON=$(
+#     jq ".name = \"$PKG_NAME\" | .main = \"${BASE_NAME}_main.js\" | .browser = \"${BASE_NAME}.js\"" \
+#     pkg/package.json
+# )
+# echo "$PACKAGE_JSON" > pkg/package.json
 
-rm -rf pkg-node
+# rm -rf pkg-node

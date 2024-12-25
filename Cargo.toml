@@ -1,6 +1,6 @@
 [package]
 name = "nekoton-wasm-locklift"
-version = "1.22.0"
+version = "1.23.0"
 edition = "2021"
 authors = ["Ivan Kalinin <i.kalinin@dexpa.io>"]
 repository = "https://github.com/broxus/nekoton-wasm"
