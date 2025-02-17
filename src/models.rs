@@ -821,6 +821,9 @@ extern "C" {
     #[wasm_bindgen(typescript_type = "Promise<Transaction | undefined>")]
     pub type PromiseOptionTransaction;
 
+    #[wasm_bindgen(typescript_type = "Promise<string | undefined>")]
+    pub type PromiseOptionLibraryCell;
+
     #[wasm_bindgen(typescript_type = "AccountsList")]
     pub type AccountsList;
 

@@ -1,6 +1,5 @@
 use std::str::FromStr;
 use std::sync::Arc;
-
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::*;
@@ -297,6 +296,29 @@ impl Transport {
                     .map(make_transaction)
                     .handle_error()?
                     .unchecked_into(),
+                    None => JsValue::undefined(),
+                },
+            )
+        })))
+    }
+
+    #[wasm_bindgen(js_name = "getLibraryCell")]
+    pub fn get_library_cell(&self, hash: &str) -> Result<PromiseOptionLibraryCell, JsValue> {
+        let hash = parse_hash(hash)?;
+        let handle = self.handle.clone();
+
+        Ok(JsCast::unchecked_into(future_to_promise(async move {
+            Ok(
+                match handle
+                    .as_ref()
+                    .get_library_cell(&hash)
+                    .await
+                    .handle_error()?
+                {
+                    Some(cell) => {
+                        let cell = make_boc(&cell)?;
+                        JsValue::from(cell)
+                    }
                     None => JsValue::undefined(),
                 },
             )
