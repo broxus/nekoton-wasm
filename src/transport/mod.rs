@@ -315,10 +315,7 @@ impl Transport {
                     .await
                     .handle_error()?
                 {
-                    Some(cell) => {
-                        let cell = make_boc(&cell)?;
-                        JsValue::from(cell)
-                    }
+                    Some(cell) => JsValue::from(make_boc(&cell)?),
                     None => JsValue::undefined(),
                 },
             )

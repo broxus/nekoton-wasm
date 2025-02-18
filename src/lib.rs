@@ -113,16 +113,19 @@ pub fn run_getter(
 
 #[wasm_bindgen(js_name = "getJettonWalletData")]
 pub fn get_jetton_wallet_data(
+    clock: &ClockWithOffset,
     transport: &Transport,
-    account_stuff_boc: &str,
+    address: &str,
 ) -> Result<PromiseJettonWalletData, JsValue> {
-    let account_stuff = parse_account_stuff(account_stuff_boc)?;
-
+    let clock = clock.inner.clone();
+    let address = parse_address(address)?;
     let transport = transport.handle.clone();
+
     Ok(JsCast::unchecked_into(future_to_promise(async move {
-        let data = nt::core::jetton_wallet::get_wallet_data(transport.into(), account_stuff)
-            .await
-            .handle_error()?;
+        let data =
+            nt::core::jetton_wallet::get_wallet_data(clock.as_ref(), transport.into(), &address)
+                .await
+                .handle_error()?;
 
         Ok(ObjectBuilder::new()
             .set("balance", data.balance.to_string())
@@ -135,16 +138,22 @@ pub fn get_jetton_wallet_data(
 
 #[wasm_bindgen(js_name = "getJettonTokenMeta")]
 pub fn get_jetton_token_meta(
+    clock: &ClockWithOffset,
     transport: &Transport,
-    account_stuff_boc: &str,
+    address: &str,
 ) -> Result<PromiseJettonTokenMeta, JsValue> {
-    let account_stuff = parse_account_stuff(account_stuff_boc)?;
-
+    let clock = clock.inner.clone();
+    let address = parse_address(address)?;
     let transport = transport.handle.clone();
+
     Ok(JsCast::unchecked_into(future_to_promise(async move {
-        let data = nt::core::jetton_wallet::get_token_root_meta(transport.into(), account_stuff)
-            .await
-            .handle_error()?;
+        let data = nt::core::jetton_wallet::get_token_root_meta(
+            clock.as_ref(),
+            transport.into(),
+            &address,
+        )
+        .await
+        .handle_error()?;
 
         Ok(ObjectBuilder::new()
             .set("name", data.name)
