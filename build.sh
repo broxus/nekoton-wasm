@@ -61,11 +61,13 @@ fi
 # Merge nodejs & browser packages
 cp "pkg-node/${BASE_NAME}.d.ts" "pkg/${BASE_NAME}_main.d.ts"
 MAIN_SCRIPT=$(sed "s/__wbindgen_placeholder__/wbg/g" "pkg-node/${BASE_NAME}.js")
-echo "$MAIN_SCRIPT" > "pkg/${BASE_NAME}_main.js"
+echo "$MAIN_SCRIPT" > "pkg/${BASE_NAME}_main.cjs"
 
 PACKAGE_JSON=$(
-    jq ".name = \"$PKG_NAME\" | .main = \"${BASE_NAME}_main.js\" | .browser = \"${BASE_NAME}.js\"" \
-    pkg/package.json
+  jq ".name = \"$PKG_NAME\" \
+    | .exports = { \"import\": \"./${BASE_NAME}.js\", \"require\": \"./${BASE_NAME}_main.cjs\" } \
+    | .files += [\"${BASE_NAME}_main.cjs\", \"${BASE_NAME}_main.d.ts\"]" \
+  pkg/package.json
 )
 echo "$PACKAGE_JSON" > pkg/package.json
 
