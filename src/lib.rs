@@ -879,7 +879,9 @@ pub fn decode_transaction(
             None => return Ok(None),
         };
 
-    let input = method.decode_input(in_msg_body, internal, false).handle_error()?;
+    let input = method
+        .decode_input(in_msg_body, internal, false)
+        .handle_error()?;
 
     let out_msgs = js_sys::Reflect::get(&transaction, &JsValue::from_str("outMessages"))?;
     if !js_sys::Array::is_array(&out_msgs) {

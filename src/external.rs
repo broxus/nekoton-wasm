@@ -195,10 +195,7 @@ extern "C" {
     ) -> Result<JsValue, JsValue>;
 
     #[wasm_bindgen(method, catch, js_name = "getLibraryCell")]
-    pub async fn get_library_cell(
-        this: &IProxyConnector,
-        hash: &str,
-    ) -> Result<JsValue, JsValue>;
+    pub async fn get_library_cell(this: &IProxyConnector, hash: &str) -> Result<JsValue, JsValue>;
 
     #[wasm_bindgen(method, catch, js_name = "getAccountsByCodeHash")]
     pub async fn get_accounts_by_code_hash(
