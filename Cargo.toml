@@ -40,7 +40,7 @@ wasm-bindgen-futures = "0.4.43"
 zeroize = "1"
 ed25519-dalek = { git = "https://github.com/broxus/ed25519-dalek.git" }
 
-ton_abi = { git = "https://github.com/broxus/ton-labs-abi.git" }
+ton_abi = { git = "https://github.com/broxus/ton-labs-abi.git", branch = "feature/new-abi" }
 ton_block = { git = "https://github.com/broxus/ton-labs-block.git", features = [
     "venom",
 ] }
@@ -52,7 +52,7 @@ serde-wasm-bindgen = "0.5.0"
 [dependencies.nt]
 package = "nekoton"
 git = "https://github.com/broxus/nekoton.git"
-branch = "master"
+branch = "feature/new-abi-support"
 features = ["web", "gql_transport", "jrpc_transport", "proto_transport", "extended_models", "non_threadsafe"]
 
 [patch.crates-io]

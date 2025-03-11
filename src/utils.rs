@@ -215,7 +215,7 @@ pub fn parse_account_stuff(boc: &str) -> Result<ton_block::AccountStuff, JsValue
 }
 
 pub fn parse_contract_abi(contract_abi: &str) -> Result<ton_abi::Contract, JsValue> {
-    ton_abi::Contract::load(contract_abi).handle_error()
+    ton_abi::Contract::load(contract_abi.as_bytes()).handle_error()
 }
 
 pub fn serialize_into_boc(data: &dyn ton_block::Serializable) -> Result<String, JsValue> {

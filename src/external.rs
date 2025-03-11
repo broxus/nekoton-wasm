@@ -166,6 +166,7 @@ export interface IProxyConnector {
   info(): TransportInfo;
   sendMessage(message: string): Promise<void>;
   getContractState(address: string): Promise<string>;
+  getLibraryCell(hash: string): Promise<string | undefined>;
   getAccountsByCodeHash(codeHash: string, limit: number, continuation?: string): Promise<string[]>;
   getTransactions(address: string, fromLt: string, count: number): Promise<string[]>;
   getTransaction(id: string): Promise<string | undefined>;
@@ -191,6 +192,12 @@ extern "C" {
     pub async fn get_contract_state(
         this: &IProxyConnector,
         address: &str,
+    ) -> Result<JsValue, JsValue>;
+
+    #[wasm_bindgen(method, catch, js_name = "getLibraryCell")]
+    pub async fn get_library_cell(
+        this: &IProxyConnector,
+        hash: &str,
     ) -> Result<JsValue, JsValue>;
 
     #[wasm_bindgen(method, catch, js_name = "getAccountsByCodeHash")]

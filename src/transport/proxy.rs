@@ -8,6 +8,7 @@ use nt::transport::models::{PollContractState, RawContractState, RawTransaction}
 use nt::transport::{Transport, TransportInfo};
 use nt::utils::Clock;
 use ton_block::{Block, Deserializable, MsgAddressInt, Serializable};
+use ton_types::{Cell, UInt256};
 use wasm_bindgen::prelude::*;
 
 use crate::external::IProxyConnector;
@@ -86,6 +87,16 @@ impl Transport for ProxyTransport {
                 })
             }
         })
+    }
+
+    async fn get_library_cell(&self, hash: &UInt256) -> Result<Option<Cell>> {
+        self.connection
+            .get_library_cell(&hash.to_hex_string())
+            .await
+            .map_err(map_js_err)?
+            .as_string()
+            .map(cell_from_base64_string)
+            .transpose()
     }
 
     async fn poll_contract_state(
@@ -237,6 +248,11 @@ fn parse_raw_transaction(tx: String) -> Result<RawTransaction> {
         hash: tx.repr_hash(),
         data: ton_block::Transaction::construct_from_cell(tx)?,
     })
+}
+
+fn cell_from_base64_string(base64: String) -> Result<Cell> {
+    let cell = ton_types::deserialize_tree_of_cells(&mut base64::decode(base64)?.as_slice())?;
+    Ok(cell)
 }
 
 fn map_js_err(error: JsValue) -> anyhow::Error {
