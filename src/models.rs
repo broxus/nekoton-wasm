@@ -711,6 +711,37 @@ pub fn serialize_into_boc_with_hash(data: &dyn Serializable) -> Result<BocWithHa
     make_boc_with_hash(cell)
 }
 
+pub fn make_vm_getter_output(
+    params: &[ton_abi::Param],
+    data: nt::abi::VmGetterOutput,
+) -> Result<ExecutionOutput, JsValue> {
+    let mut builder = ObjectBuilder::new()
+        .set("code", data.exit_code);
+
+    if data.is_ok {
+        if data.stack.len() != params.len() {
+            return Err(TokensJsonError::ParameterCountMismatch).handle_error();
+        }
+
+        let tokens = data
+            .stack
+            .iter()
+            .zip(params)
+            .map(|(value, param)| {
+                let value = map_stack_item(param, value)?;
+                Ok(ton_abi::Token {
+                    name: param.name.clone(),
+                    value,
+                })
+            })
+            .collect::<Result<Vec<_>, JsValue>>()?;
+
+        builder = builder.set("output", make_tokens_object(tokens)?);
+    }
+
+    Ok(builder.build().unchecked_into())
+}
+
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(typescript_type = "TransactionId")]

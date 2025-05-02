@@ -1,10 +1,12 @@
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
+use nt::abi::StackItem;
 use nt::utils::*;
 use num_bigint::{BigInt, BigUint};
 use num_traits::Num;
 use ton_block::Serializable;
+use ton_vm::stack::integer::IntegerData;
 use wasm_bindgen::{JsCast, JsValue};
 
 use crate::models::*;
@@ -600,4 +602,142 @@ pub fn parse_param_type(kind: &str) -> Result<ton_abi::ParamType, TokensJsonErro
     };
 
     Ok(result)
+}
+
+pub fn make_stack_item(value: ton_abi::TokenValue) -> Result<StackItem, JsValue> {
+    let result = match value {
+        ton_abi::TokenValue::Uint(value) => {
+            StackItem::integer(IntegerData::from(value.number).handle_error()?)
+        }
+        ton_abi::TokenValue::Int(value) => {
+            StackItem::integer(IntegerData::from(value.number).handle_error()?)
+        }
+        ton_abi::TokenValue::VarInt(_, value) => {
+            StackItem::integer(IntegerData::from(value).handle_error()?)
+        }
+        ton_abi::TokenValue::VarUint(_, value) => {
+            StackItem::integer(IntegerData::from(value).handle_error()?)
+        }
+        ton_abi::TokenValue::Bool(value) => StackItem::boolean(value),
+        ton_abi::TokenValue::Tuple(tokens) => StackItem::tuple(
+            tokens
+                .into_iter()
+                .map(|token| make_stack_item(token.value))
+                .collect::<Result<_, _>>()?,
+        ),
+        ton_abi::TokenValue::Array(_, values) | ton_abi::TokenValue::FixedArray(_, values) => {
+            StackItem::tuple(
+                values
+                    .into_iter()
+                    .map(|value| make_stack_item(value))
+                    .collect::<Result<_, _>>()?,
+            )
+        }
+        ton_abi::TokenValue::Cell(value) => StackItem::cell(value),
+        ton_abi::TokenValue::Address(value) => StackItem::Slice(
+            ton_types::SliceData::load_cell(value.serialize().handle_error()?).handle_error()?,
+        ),
+        ton_abi::TokenValue::String(value) => {
+            let cell = ton_types::BuilderData::new()
+                .append_raw(value.as_bytes(), value.len() * 8)
+                .trust_me()
+                .clone()
+                .into_cell()
+                .handle_error()?;
+            StackItem::cell(cell)
+        }
+        ton_abi::TokenValue::Token(value) => StackItem::integer(value.as_u128().into()),
+        ton_abi::TokenValue::Time(value) => StackItem::integer(value.into()),
+        ton_abi::TokenValue::Expire(value) => StackItem::integer(value.into()),
+        ton_abi::TokenValue::PublicKey(value) => {
+            let cell = if let Some(public_key) = value {
+                let mut builder = ton_types::BuilderData::new();
+                builder.append_raw(public_key.as_bytes(), 256).trust_me();
+                builder.into_cell().handle_error()?
+            } else {
+                ton_types::Cell::default()
+            };
+            StackItem::cell(cell)
+        }
+        ton_abi::TokenValue::Optional(_, value) => match value {
+            Some(value) => make_stack_item(*value)?,
+            None => StackItem::default(),
+        },
+        ton_abi::TokenValue::Ref(value) => make_stack_item(*value)?,
+        _ => return Err("Unsupported value type").handle_error(),
+    };
+
+    Ok(result)
+}
+
+pub fn map_stack_item(
+    param: &ton_abi::Param,
+    value: &StackItem,
+) -> Result<ton_abi::TokenValue, JsValue> {
+    let result = match value {
+        StackItem::None => ton_abi::TokenValue::Tuple(Vec::new()),
+        StackItem::Integer(value) => {
+            ton_vm::stack::integer::utils::process_value(&value, |bigint| {
+                Ok(ton_abi::TokenValue::Int(ton_abi::Int {
+                    number: bigint.clone(),
+                    size: 257,
+                }))
+            })
+            .handle_error()?
+        }
+        StackItem::Tuple(values) => match &param.kind {
+            ton_abi::ParamType::Tuple(params) => {
+                if values.len() != params.len() {
+                    return Err(TokensJsonError::ParameterCountMismatch).handle_error();
+                }
+
+                let values = values
+                    .iter()
+                    .zip(params)
+                    .map(|(value, param)| {
+                        map_stack_item(&param, value).map(|token_value| ton_abi::Token {
+                            name: param.name.clone(),
+                            value: token_value,
+                        })
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+
+                ton_abi::TokenValue::Tuple(values)
+            }
+            _ => return Err(TokensJsonError::ArrayExpected).handle_error(),
+        },
+        StackItem::Cell(value) => {
+            let slice = ton_types::SliceData::load_cell(value.clone()).handle_error()?;
+            read_token_value(&param.kind, slice).handle_error()?
+        }
+        StackItem::Slice(value) => read_token_value(&param.kind, value.clone()).handle_error()?,
+        StackItem::Builder(arc) => {
+            let cell = arc.as_ref().clone().into_cell().handle_error()?;
+            let slice = ton_types::SliceData::load_cell(cell).handle_error()?;
+
+            read_token_value(&param.kind, slice).handle_error()?
+        }
+        StackItem::Continuation(arc) => {
+            let cell = arc.as_ref().clone().drain_reference().handle_error()?;
+            let slice = ton_types::SliceData::load_cell(cell).handle_error()?;
+
+            read_token_value(&param.kind, slice).handle_error()?
+        }
+    };
+
+    Ok(result)
+}
+
+pub fn read_token_value(
+    param: &ton_abi::ParamType,
+    slice: ton_types::SliceData,
+) -> Result<ton_abi::TokenValue, anyhow::Error> {
+    ton_abi::TokenValue::read_from(
+        &param,
+        slice.into(),
+        true,
+        &ton_abi::contract::ABI_VERSION_2_7,
+        true,
+    )
+    .map(|(value, _)| value)
 }
