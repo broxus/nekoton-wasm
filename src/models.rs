@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::convert::TryFrom;
 
-use nt::abi;
 use nt::core::models;
 
 use ton_block::{Deserializable, Serializable};
@@ -735,11 +734,10 @@ pub fn serialize_into_boc_with_hash(data: &dyn Serializable) -> Result<BocWithHa
 
 pub fn make_vm_getter_output(
     params: &[ton_abi::Param],
-    data: abi::VmGetterOutput,
-) -> Result<VmGetterOutput, JsValue> {
+    data: nt::abi::VmGetterOutput,
+) -> Result<ExecutionOutput, JsValue> {
     let mut builder = ObjectBuilder::new()
-        .set("exitCode", data.exit_code)
-        .set("isOk", data.is_ok);
+        .set("code", data.exit_code);
 
     if data.is_ok {
         if data.stack.len() != params.len() {

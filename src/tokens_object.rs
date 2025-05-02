@@ -100,6 +100,7 @@ pub fn make_token_value(value: ton_abi::TokenValue) -> Result<JsValue, JsValue> 
             .collect::<Result<js_sys::Array, _>>()?
             .unchecked_into(),
         ton_abi::TokenValue::Address(value) => JsValue::from(value.to_string()),
+        ton_abi::TokenValue::AddressStd(value) => JsValue::from(value.to_string()),
         ton_abi::TokenValue::Bytes(value) | ton_abi::TokenValue::FixedBytes(value) => {
             JsValue::from(base64::encode(value))
         }
@@ -314,6 +315,20 @@ pub fn parse_token_value(
             }?;
 
             ton_abi::TokenValue::Address(match value {
+                ton_block::MsgAddressInt::AddrStd(value) => ton_block::MsgAddress::AddrStd(value),
+                ton_block::MsgAddressInt::AddrVar(value) => ton_block::MsgAddress::AddrVar(value),
+            })
+        }
+        ton_abi::ParamType::AddressStd => {
+            let value = if let Some(value) = value.as_string() {
+                let value = value.trim();
+                ton_block::MsgAddressInt::from_str(value)
+                    .map_err(|_| TokensJsonError::InvalidAddress)
+            } else {
+                Err(TokensJsonError::StringExpected)
+            }?;
+
+            ton_abi::TokenValue::AddressStd(match value {
                 ton_block::MsgAddressInt::AddrStd(value) => ton_block::MsgAddress::AddrStd(value),
                 ton_block::MsgAddressInt::AddrVar(value) => ton_block::MsgAddress::AddrVar(value),
             })
@@ -719,9 +734,9 @@ pub fn read_token_value(
 ) -> Result<ton_abi::TokenValue, anyhow::Error> {
     ton_abi::TokenValue::read_from(
         &param,
-        slice,
+        slice.into(),
         true,
-        &ton_abi::contract::ABI_VERSION_2_1,
+        &ton_abi::contract::ABI_VERSION_2_7,
         true,
     )
     .map(|(value, _)| value)

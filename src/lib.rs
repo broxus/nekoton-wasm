@@ -7,7 +7,7 @@ use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 
 use ed25519_dalek::{Signer, Verifier};
-use nt::abi::{FunctionExt, StackItem};
+use nt::abi::FunctionExt;
 use nt::utils::Clock;
 use num_traits::CheckedSub;
 use ton_block::{Deserializable, GetRepresentationHash, Serializable};
@@ -79,21 +79,20 @@ pub fn run_local(
 pub fn run_getter(
     clock: &ClockWithOffset,
     account_stuff_boc: &str,
+    contract_abi: &str,
     method: &str,
-    input_params: ParamsList,
-    output_params: ParamsList,
-    tokens: TokensObject,
+    input: TokensObject,
     signature_id: Option<i32>,
-) -> Result<VmGetterOutput, JsValue> {
+) -> Result<ExecutionOutput, JsValue> {
     let account_stuff = parse_account_stuff(account_stuff_boc)?;
-    let input_params = parse_params_list(input_params).handle_error()?;
-    let output_params = parse_params_list(output_params).handle_error()?;
-    let tokens = parse_tokens_object(&input_params, tokens).handle_error()?;
+    let contract_abi = parse_contract_abi(contract_abi)?;
+    let getter = contract_abi.getter(method).handle_error()?;
+    let input = parse_tokens_object(&getter.inputs, input).handle_error()?;
 
-    let args = tokens
+    let args = input
         .into_iter()
         .map(|token| make_stack_item(token.value))
-        .collect::<Result<Vec<StackItem>, JsValue>>()?;
+        .collect::<Result<Vec<_>, JsValue>>()?;
 
     let mut config = nt::abi::BriefBlockchainConfig::default();
     if let Some(signature_id) = signature_id {
@@ -101,14 +100,14 @@ pub fn run_getter(
         config.capabilities |= ton_block::GlobalCapabilities::CapSignatureWithId as u64;
     }
 
-    let res = nt::abi::ExecutionContext {
+    let output = nt::abi::ExecutionContext {
         clock: clock.inner.as_ref(),
         account_stuff: &account_stuff,
     }
     .run_getter_ext(method, &args, &config, &Default::default())
-    .unwrap();
+    .handle_error()?;
 
-    make_vm_getter_output(&output_params, res)
+    make_vm_getter_output(&getter.outputs, output)
 }
 
 #[wasm_bindgen(js_name = "getJettonWalletData")]
@@ -774,7 +773,7 @@ pub fn decode_transaction(
             None => return Ok(None),
         };
 
-    let input = method.decode_input(in_msg_body, internal).handle_error()?;
+    let input = method.decode_input(in_msg_body, internal, false).handle_error()?;
 
     let out_msgs = js_sys::Reflect::get(&transaction, &JsValue::from_str("outMessages"))?;
     if !js_sys::Array::is_array(&out_msgs) {
