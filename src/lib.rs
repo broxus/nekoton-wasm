@@ -73,6 +73,41 @@ pub fn run_local(
     make_execution_output(output)
 }
 
+#[wasm_bindgen(js_name = "runGetter")]
+pub fn run_getter(
+    clock: &ClockWithOffset,
+    account_stuff_boc: &str,
+    contract_abi: &str,
+    method: &str,
+    input: TokensObject,
+    signature_id: Option<i32>,
+) -> Result<ExecutionOutput, JsValue> {
+    let account_stuff = parse_account_stuff(account_stuff_boc)?;
+    let contract_abi = parse_contract_abi(contract_abi)?;
+    let getter = contract_abi.getter(method).handle_error()?;
+    let input = parse_tokens_object(&getter.inputs, input).handle_error()?;
+
+    let args = input
+        .into_iter()
+        .map(|token| make_stack_item(token.value))
+        .collect::<Result<Vec<_>, JsValue>>()?;
+
+    let mut config = nt::abi::BriefBlockchainConfig::default();
+    if let Some(signature_id) = signature_id {
+        config.global_id = signature_id;
+        config.capabilities |= ton_block::GlobalCapabilities::CapSignatureWithId as u64;
+    }
+
+    let output = nt::abi::ExecutionContext {
+        clock: clock.inner.as_ref(),
+        account_stuff: &account_stuff,
+    }
+    .run_getter_ext(method, &args, &config, &Default::default())
+    .handle_error()?;
+
+    make_vm_getter_output(&getter.outputs, output)
+}
+
 #[wasm_bindgen(js_name = "makeFullAccountBoc")]
 pub fn make_full_account_boc(account_stuff_boc: Option<String>) -> Result<String, JsValue> {
     let account = match account_stuff_boc {
@@ -681,7 +716,7 @@ pub fn decode_transaction(
             None => return Ok(None),
         };
 
-    let input = method.decode_input(in_msg_body, internal).handle_error()?;
+    let input = method.decode_input(in_msg_body, internal, false).handle_error()?;
 
     let out_msgs = js_sys::Reflect::get(&transaction, &JsValue::from_str("outMessages"))?;
     if !js_sys::Array::is_array(&out_msgs) {

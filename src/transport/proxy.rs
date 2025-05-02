@@ -229,6 +229,17 @@ impl Transport for ProxyTransport {
 
         ton_executor::BlockchainConfig::with_config(boc, global_id)
     }
+
+    async fn get_library_cell(&self, hash: &ton_types::UInt256) -> Result<Option<ton_types::Cell>> {
+        let cell = self
+            .connection
+            .get_library_cell(&hash.to_string())
+            .await
+            .map_err(map_js_err)?
+            .as_string();
+
+        cell.map(|cell| ton_types::Cell::construct_from_base64(&cell)).transpose()
+    }
 }
 
 fn parse_raw_transaction(tx: String) -> Result<RawTransaction> {
