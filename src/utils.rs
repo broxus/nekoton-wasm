@@ -310,4 +310,8 @@ pub enum TokensJsonError {
     InvalidComponents,
     #[error("Integer overflow")]
     IntegerOverflow,
+    #[error("Data map unsupported")]
+    DataMapUnsupported,
+    #[error("Init fields unsupported")]
+    InitFieldsUnsupported,
 }

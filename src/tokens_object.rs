@@ -1,10 +1,11 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::str::FromStr;
-
+use nt::abi::BuildTokenValue;
 use nt::utils::*;
 use num_bigint::{BigInt, BigUint};
 use num_traits::Num;
 use ton_block::Serializable;
+use ton_types::UInt256;
 use wasm_bindgen::{JsCast, JsValue};
 
 use crate::models::*;
@@ -16,44 +17,111 @@ pub fn insert_init_data(
     public_key: &Option<ed25519_dalek::PublicKey>,
     tokens: TokensObject,
 ) -> Result<ton_types::SliceData, JsValue> {
-    let mut map = ton_types::HashmapE::with_hashmap(
-        ton_abi::Contract::DATA_MAP_KEYLEN,
-        data.reference_opt(0),
-    );
+    insert_init_data_map_ext(contract_abi, data, public_key, tokens)
+}
 
-    if let Some(public_key) = public_key {
-        map.set_builder(
-            serialize_state_init_data_key(0),
-            ton_types::BuilderData::new()
-                .append_raw(public_key.as_bytes(), 256)
-                .trust_me(),
-        )
-        .handle_error()?;
+pub fn insert_init_fields(
+    contract_abi: ton_abi::Contract,
+    public_key: &Option<String>,
+    tokens: TokensObject,
+) -> Result<ton_types::SliceData, JsValue> {
+    let public_key = if let Some(public_key) = public_key {
+        Some(UInt256::from_str(public_key).handle_error()?.token_value())
+    } else {
+        None
+    };
+    insert_init_fields_ext(contract_abi, &public_key, tokens)
+}
+
+fn insert_init_data_map_ext(
+    contract_abi: ton_abi::Contract,
+    data: ton_types::SliceData,
+    public_key: &Option<ed25519_dalek::PublicKey>,
+    tokens: TokensObject,
+) -> Result<ton_types::SliceData, JsValue> {
+    if contract_abi.data_map_supported() {
+        let mut map = ton_types::HashmapE::with_hashmap(
+            ton_abi::Contract::DATA_MAP_KEYLEN,
+            data.reference_opt(0),
+        );
+
+        if let Some(public_key) = public_key {
+            map.set_builder(
+                serialize_state_init_data_key(0),
+                ton_types::BuilderData::new()
+                    .append_raw(public_key.as_bytes(), 256)
+                    .trust_me(),
+            )
+                .handle_error()?;
+        }
+
+        if !contract_abi.data.is_empty() {
+            if !tokens.is_object() {
+                return Err(TokensJsonError::ObjectExpected).handle_error();
+            }
+
+            for (param_name, param) in contract_abi.data {
+                let value = js_sys::Reflect::get(&tokens, &JsValue::from_str(param_name.as_str()))
+                    .map_err(|_| TokensJsonError::ParameterNotFound(param_name.clone()))
+                    .handle_error()?;
+
+                let builder = parse_token_value(&param.value.kind, value)
+                    .handle_error()?
+                    .pack_into_chain(&contract_abi.abi_version)
+                    .handle_error()?;
+
+                map.set_builder(serialize_state_init_data_key(param.key), &builder)
+                    .handle_error()?;
+            }
+        }
+
+        return map.write_to_new_cell()
+            .and_then(ton_types::SliceData::load_builder)
+            .handle_error()
     }
 
-    if !contract_abi.data.is_empty() {
+    Err(TokensJsonError::DataMapUnsupported).handle_error()
+}
+
+fn insert_init_fields_ext(
+    contract_abi: ton_abi::Contract,
+    public_key: &Option<ton_abi::TokenValue>,
+    tokens: TokensObject,
+) -> Result<ton_types::SliceData, JsValue> {
+    if contract_abi.init_fields_supported() {
         if !tokens.is_object() {
             return Err(TokensJsonError::ObjectExpected).handle_error();
         }
-
-        for (param_name, param) in contract_abi.data {
-            let value = js_sys::Reflect::get(&tokens, &JsValue::from_str(param_name.as_str()))
-                .map_err(|_| TokensJsonError::ParameterNotFound(param_name.clone()))
-                .handle_error()?;
-
-            let builder = parse_token_value(&param.value.kind, value)
-                .handle_error()?
-                .pack_into_chain(&contract_abi.abi_version)
-                .handle_error()?;
-
-            map.set_builder(serialize_state_init_data_key(param.key), &builder)
-                .handle_error()?;
+        
+        let mut init_fields = HashMap::with_capacity(contract_abi.init_fields.capacity());
+        for param in &contract_abi.fields {
+            if contract_abi.init_fields.contains(&param.name) {
+                let value = if param.name == "_pubkey" {
+                    let Some(public_key) = public_key.clone() else {
+                        return Err(TokensJsonError::InvalidPublicKey).handle_error()
+                    };
+                    public_key
+                } else {
+                    let value = js_sys::Reflect::get(&tokens, &JsValue::from_str(param.name.as_str()))
+                        .map_err(|_| TokensJsonError::ParameterNotFound(param.name.clone()))
+                        .handle_error()?;
+                    
+                    if value.is_undefined() || value.is_null() {
+                        return Err(TokensJsonError::ParameterNotFound(param.name.clone())).handle_error()
+                    }
+                    parse_token_value(&param.kind, value).handle_error()?
+                };
+                
+                init_fields.insert(param.name.clone(), value);
+            }
         }
+
+        let builder_data = contract_abi.encode_storage_fields(init_fields).handle_error()?;
+        return ton_types::SliceData::load_builder(builder_data).handle_error()
     }
 
-    map.write_to_new_cell()
-        .and_then(ton_types::SliceData::load_builder)
-        .handle_error()
+    Err(TokensJsonError::InitFieldsUnsupported).handle_error()
+
 }
 
 pub fn make_tokens_object(tokens: Vec<ton_abi::Token>) -> Result<TokensObject, JsValue> {

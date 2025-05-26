@@ -11,6 +11,7 @@ use nt::abi::FunctionExt;
 use nt::transport::models::RawTransaction;
 use nt::utils::Clock;
 use num_traits::CheckedSub;
+use ton_abi::contract::ABI_VERSION_2_4;
 use ton_block::{Deserializable, GetRepresentationHash, Serializable, TransactionDescrOrdinary};
 use ton_executor::TransactionExecutor;
 use ton_types::UInt256;
@@ -465,14 +466,18 @@ pub fn get_expected_address(
 ) -> Result<ExpectedAddress, JsValue> {
     let mut state_init = ton_block::StateInit::construct_from_base64(tvc).handle_error()?;
     let contract_abi = parse_contract_abi(contract_abi)?;
-    let public_key = public_key.as_deref().map(parse_public_key).transpose()?;
+    let public_key_opt = public_key.as_deref().map(parse_public_key).transpose()?;
 
-    state_init.data = if let Some(data) = state_init.data.take() {
+    let data = if contract_abi.abi_version >= ABI_VERSION_2_4 {
+        Some(insert_init_fields(contract_abi, &public_key, init_data)?.into_cell())
+    } else if let Some(data) = state_init.data.take() {
         let data = ton_types::SliceData::load_cell(data).handle_error()?;
-        Some(insert_init_data(contract_abi, data, &public_key, init_data)?.into_cell())
+        Some(insert_init_data(contract_abi, data, &public_key_opt, init_data)?.into_cell())
     } else {
         None
     };
+    
+    state_init.data = data;
 
     let cell = state_init.serialize().handle_error()?;
     let repr_hash = cell.repr_hash().to_hex_string();
