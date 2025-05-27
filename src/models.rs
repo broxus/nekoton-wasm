@@ -1036,7 +1036,7 @@ pub fn make_full_contract_state_from_shard_account(
     shard_account: ShardAccount,
 ) -> Result<JsValue, JsValue> {
     let account = shard_account.read_account().handle_error()?;
-    let Account::Account(stuff) = account else {
+    let Account::Account(stuff) = &account else {
         return Ok(JsValue::undefined());
     };
 
@@ -1067,7 +1067,7 @@ pub fn make_full_contract_state_from_shard_account(
             ),
         )
         .set("codeHash", code_hash)
-        .set("boc", serialize_into_boc(&stuff)?)
+        .set("boc", serialize_into_boc(&account)?)
         .build()
         .unchecked_into())
 }
