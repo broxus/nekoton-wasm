@@ -12,7 +12,9 @@ use nt::transport::models::RawTransaction;
 use nt::utils::Clock;
 use num_traits::CheckedSub;
 use ton_abi::contract::ABI_VERSION_2_4;
-use ton_block::{Deserializable, GetRepresentationHash, Serializable, TransactionDescrOrdinary};
+use ton_block::{
+    Deserializable, GetRepresentationHash, Serializable, ShardAccount, TransactionDescrOrdinary,
+};
 use ton_executor::TransactionExecutor;
 use ton_types::UInt256;
 use wasm_bindgen::prelude::*;
@@ -125,6 +127,15 @@ pub fn parse_full_account_boc(account: &str) -> Result<OptionFullContractState, 
         }
     };
     make_full_contract_state(account).map(JsValue::unchecked_into)
+}
+
+#[wasm_bindgen(js_name = "parseShardAccountBoc")]
+pub fn parse_shard_account_boc(
+    shard_account_boc: &str,
+) -> Result<OptionFullContractState, JsValue> {
+    let shard_account_cell = parse_cell(shard_account_boc)?;
+    let shard_account = ShardAccount::construct_from_cell(shard_account_cell).handle_error()?;
+    make_full_contract_state_from_shard_account(shard_account).map(JsValue::unchecked_into)
 }
 
 #[wasm_bindgen(js_name = "parseFullAccountStateInit")]
@@ -476,7 +487,7 @@ pub fn get_expected_address(
     } else {
         None
     };
-    
+
     state_init.data = data;
 
     let cell = state_init.serialize().handle_error()?;

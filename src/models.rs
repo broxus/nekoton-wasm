@@ -1,11 +1,10 @@
-use std::collections::HashMap;
-use std::convert::TryFrom;
-
 use nt::core::models;
 use nt::core::models::TransactionError;
+use std::collections::HashMap;
+use std::convert::TryFrom;
 use ton_block::{
-    Deserializable, GetRepresentationHash, MsgAddressExt, MsgAddressInt, Serializable,
-    TrBouncePhase,
+    Account, Deserializable, GetRepresentationHash, MsgAddressExt, MsgAddressInt, Serializable,
+    ShardAccount, TrBouncePhase,
 };
 use ton_types::UInt256;
 use wasm_bindgen::prelude::*;
@@ -1031,6 +1030,46 @@ pub fn make_full_contract_state(
         }
         nt::transport::models::RawContractState::NotExists { .. } => Ok(JsValue::undefined()),
     }
+}
+
+pub fn make_full_contract_state_from_shard_account(
+    shard_account: ShardAccount,
+) -> Result<JsValue, JsValue> {
+    let account = shard_account.read_account().handle_error()?;
+    let Account::Account(stuff) = account else {
+        return Ok(JsValue::undefined());
+    };
+
+    let code_hash = match &stuff.storage.state {
+        ton_block::AccountState::AccountActive {
+            state_init: ton_block::StateInit {
+                code: Some(code), ..
+            },
+        } => Some(code.repr_hash().to_hex_string()),
+        _ => None,
+    };
+
+    Ok(ObjectBuilder::new()
+        .set("balance", stuff.storage.balance.grams.as_u128().to_string())
+        .set("genTimings", make_gen_timings(nt::abi::GenTimings::Unknown))
+        .set(
+            "lastTransactionId",
+            make_last_transaction_id(nt::abi::LastTransactionId::Exact(nt::abi::TransactionId {
+                lt: shard_account.last_trans_lt(),
+                hash: *shard_account.last_trans_hash(),
+            })),
+        )
+        .set(
+            "isDeployed",
+            matches!(
+                &stuff.storage.state,
+                ton_block::AccountState::AccountActive { .. }
+            ),
+        )
+        .set("codeHash", code_hash)
+        .set("boc", serialize_into_boc(&stuff)?)
+        .build()
+        .unchecked_into())
 }
 
 pub fn make_storage_fee_info(

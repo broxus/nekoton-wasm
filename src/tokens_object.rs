@@ -1,9 +1,9 @@
-use std::collections::{BTreeMap, HashMap};
-use std::str::FromStr;
 use nt::abi::BuildTokenValue;
 use nt::utils::*;
 use num_bigint::{BigInt, BigUint};
 use num_traits::Num;
+use std::collections::{BTreeMap, HashMap};
+use std::str::FromStr;
 use ton_block::Serializable;
 use ton_types::UInt256;
 use wasm_bindgen::{JsCast, JsValue};
@@ -52,7 +52,7 @@ fn insert_init_data_map_ext(
                     .append_raw(public_key.as_bytes(), 256)
                     .trust_me(),
             )
-                .handle_error()?;
+            .handle_error()?;
         }
 
         if !contract_abi.data.is_empty() {
@@ -75,9 +75,10 @@ fn insert_init_data_map_ext(
             }
         }
 
-        return map.write_to_new_cell()
+        return map
+            .write_to_new_cell()
             .and_then(ton_types::SliceData::load_builder)
-            .handle_error()
+            .handle_error();
     }
 
     Err(TokensJsonError::DataMapUnsupported).handle_error()
@@ -92,36 +93,39 @@ fn insert_init_fields_ext(
         if !tokens.is_object() {
             return Err(TokensJsonError::ObjectExpected).handle_error();
         }
-        
+
         let mut init_fields = HashMap::with_capacity(contract_abi.init_fields.capacity());
         for param in &contract_abi.fields {
             if contract_abi.init_fields.contains(&param.name) {
                 let value = if param.name == "_pubkey" {
                     let Some(public_key) = public_key.clone() else {
-                        return Err(TokensJsonError::InvalidPublicKey).handle_error()
+                        return Err(TokensJsonError::InvalidPublicKey).handle_error();
                     };
                     public_key
                 } else {
-                    let value = js_sys::Reflect::get(&tokens, &JsValue::from_str(param.name.as_str()))
-                        .map_err(|_| TokensJsonError::ParameterNotFound(param.name.clone()))
-                        .handle_error()?;
-                    
+                    let value =
+                        js_sys::Reflect::get(&tokens, &JsValue::from_str(param.name.as_str()))
+                            .map_err(|_| TokensJsonError::ParameterNotFound(param.name.clone()))
+                            .handle_error()?;
+
                     if value.is_undefined() || value.is_null() {
-                        return Err(TokensJsonError::ParameterNotFound(param.name.clone())).handle_error()
+                        return Err(TokensJsonError::ParameterNotFound(param.name.clone()))
+                            .handle_error();
                     }
                     parse_token_value(&param.kind, value).handle_error()?
                 };
-                
+
                 init_fields.insert(param.name.clone(), value);
             }
         }
 
-        let builder_data = contract_abi.encode_storage_fields(init_fields).handle_error()?;
-        return ton_types::SliceData::load_builder(builder_data).handle_error()
+        let builder_data = contract_abi
+            .encode_storage_fields(init_fields)
+            .handle_error()?;
+        return ton_types::SliceData::load_builder(builder_data).handle_error();
     }
 
     Err(TokensJsonError::InitFieldsUnsupported).handle_error()
-
 }
 
 pub fn make_tokens_object(tokens: Vec<ton_abi::Token>) -> Result<TokensObject, JsValue> {
