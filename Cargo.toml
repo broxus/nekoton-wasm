@@ -49,8 +49,8 @@ ton_vm = { git = "https://github.com/broxus/ton-labs-vm.git" }
 [dependencies.nt]
 package = "nekoton"
 git = "https://github.com/broxus/nekoton.git"
-branch = "feat/ton-client-v4"
-features = ["web", "gql_transport", "jrpc_transport", "proto_transport", "ton_transport", "extended_models", "non_threadsafe"]
+branch = "feature/new-abi-support"
+features = ["web", "gql_transport", "jrpc_transport", "proto_transport", "extended_models", "non_threadsafe"]
 
 [patch.crates-io]
 hmac-drbg = { git = "https://github.com/Rexagon/rust-hmac-drbg" }

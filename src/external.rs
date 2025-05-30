@@ -16,11 +16,6 @@ export interface IJrpcSender {
 export interface IProtoSender {
   send(data: Uint8Array, handler: BytesQuery, requires_db: boolean): void;
 }
-
-export interface ITonSender {
-  send_get(path: string, handler: OptionStringQuery): void;
-  send_post(data: string, path: string, handler: OptionStringQuery): void;
-}
 "#;
 
 #[wasm_bindgen]
@@ -104,37 +99,6 @@ impl nt::external::ProtoConnection for IProtoSender {
 }
 
 #[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(typescript_type = "ITonSender")]
-    pub type ITonSender;
-
-    #[wasm_bindgen(method)]
-    pub fn send_get(this: &ITonSender, path: &str, handler: OptionStringQuery);
-
-    #[wasm_bindgen(method)]
-    pub fn send_post(this: &ITonSender, body: &str, path: &str, handler: OptionStringQuery);
-}
-
-unsafe impl Send for ITonSender {}
-unsafe impl Sync for ITonSender {}
-
-#[async_trait::async_trait(?Send)]
-impl nt::external::TonConnection for ITonSender {
-    async fn send_get(&self, path: &str) -> Result<Option<String>> {
-        let (tx, rx) = oneshot::channel();
-        let handler = OptionStringQuery { tx };
-        self.send_get(path, handler);
-        Ok(rx.await.unwrap_or(Err(QueryError::RequestFailed))?)
-    }
-    async fn send_post(&self, body: &str, path: &str) -> Result<Option<String>> {
-        let (tx, rx) = oneshot::channel();
-        let handler = OptionStringQuery { tx };
-        self.send_post(body, path, handler);
-        Ok(rx.await.unwrap_or(Err(QueryError::RequestFailed))?)
-    }
-}
-
-#[wasm_bindgen]
 pub struct BytesQuery {
     #[wasm_bindgen(skip)]
     pub tx: oneshot::Sender<BytesQueryResult>,
@@ -185,35 +149,6 @@ impl StringQuery {
         let _ = self.tx.send(Err(QueryError::TimeoutReached));
     }
 }
-
-#[wasm_bindgen]
-pub struct OptionStringQuery {
-    #[wasm_bindgen(skip)]
-    pub tx: oneshot::Sender<OptionStringQueryResult>,
-}
-
-pub type OptionStringQueryResult = Result<Option<String>, QueryError>;
-
-#[wasm_bindgen]
-impl OptionStringQuery {
-    #[wasm_bindgen(js_name = "onReceive")]
-    pub fn on_receive(self, data: Option<String>) {
-        let _ = self.tx.send(Ok(data));
-    }
-
-    #[wasm_bindgen(js_name = "onError")]
-    pub fn on_error(self, _: JsValue) {
-        let _ = self.tx.send(Err(QueryError::RequestFailed));
-    }
-
-    #[wasm_bindgen(js_name = "onTimeout")]
-    pub fn on_timeout(self) {
-        let _ = self.tx.send(Err(QueryError::TimeoutReached));
-    }
-}
-
-
-
 
 #[derive(thiserror::Error, Debug)]
 pub enum QueryError {
