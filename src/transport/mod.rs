@@ -13,6 +13,7 @@ pub mod gql;
 pub mod jrpc;
 pub mod proto;
 pub mod proxy;
+pub mod ton;
 
 #[derive(Clone)]
 pub enum TransportHandle {
@@ -20,6 +21,7 @@ pub enum TransportHandle {
     Jrpc(Arc<nt::transport::jrpc::JrpcTransport>),
     Proto(Arc<nt::transport::proto::ProtoTransport>),
     Proxy(Arc<proxy::ProxyTransport>),
+    TonClientV4(Arc<nt::transport::ton::TonTransport>)
 }
 
 impl TransportHandle {
@@ -38,6 +40,7 @@ impl<'a> AsRef<dyn nt::transport::Transport + 'a> for TransportHandle {
             Self::Jrpc(transport) => transport.as_ref(),
             Self::Proto(transport) => transport.as_ref(),
             Self::Proxy(transport) => transport.as_ref(),
+            Self::TonClientV4(transport) => transport.as_ref(),       
         }
     }
 }
@@ -49,6 +52,7 @@ impl From<TransportHandle> for Arc<dyn nt::transport::Transport> {
             TransportHandle::Jrpc(transport) => transport,
             TransportHandle::Proto(transport) => transport,
             TransportHandle::Proxy(transport) => transport,
+            TransportHandle::TonClientV4(transport) => transport,       
         }
     }
 }
@@ -103,6 +107,18 @@ impl Transport {
         let transport = Arc::new(proxy::ProxyTransport::new(proxy.inner.clone()));
         Self {
             handle: TransportHandle::Proxy(transport),
+            clock: clock.clone_inner(),
+        }
+    }
+
+    #[wasm_bindgen(js_name = "fromTonConnection")]
+    pub fn from_ton_connection(
+        ton: &ton::TonConnection,
+        clock: &ClockWithOffset,
+    ) -> Transport {
+        let transport = Arc::new(nt::transport::ton::TonTransport::new(ton.inner.clone()));
+        Self {
+            handle: TransportHandle::TonClientV4(transport),
             clock: clock.clone_inner(),
         }
     }

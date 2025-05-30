@@ -606,7 +606,7 @@ dependencies = [
 [[package]]
 name = "nekoton"
 version = "0.13.1"
-source = "git+https://github.com/broxus/nekoton.git?branch=feature%2Fnew-abi-support#a121c6736499f9ccfbd7f0f9131baa94fda178eb"
+source = "git+https://github.com/broxus/nekoton.git?branch=feat%2Fton-client-v4#e1bb66e9506c8f445b7c111b3f46e3d161305c6c"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -651,7 +651,7 @@ dependencies = [
 [[package]]
 name = "nekoton-abi"
 version = "0.13.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=feature%2Fnew-abi-support#a121c6736499f9ccfbd7f0f9131baa94fda178eb"
+source = "git+https://github.com/broxus/nekoton.git?branch=feat%2Fton-client-v4#e1bb66e9506c8f445b7c111b3f46e3d161305c6c"
 dependencies = [
  "anyhow",
  "base64",
@@ -678,7 +678,7 @@ dependencies = [
 [[package]]
 name = "nekoton-contracts"
 version = "0.13.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=feature%2Fnew-abi-support#a121c6736499f9ccfbd7f0f9131baa94fda178eb"
+source = "git+https://github.com/broxus/nekoton.git?branch=feat%2Fton-client-v4#e1bb66e9506c8f445b7c111b3f46e3d161305c6c"
 dependencies = [
  "anyhow",
  "nekoton-abi",
@@ -695,7 +695,7 @@ dependencies = [
 [[package]]
 name = "nekoton-derive"
 version = "0.13.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=feature%2Fnew-abi-support#a121c6736499f9ccfbd7f0f9131baa94fda178eb"
+source = "git+https://github.com/broxus/nekoton.git?branch=feat%2Fton-client-v4#e1bb66e9506c8f445b7c111b3f46e3d161305c6c"
 dependencies = [
  "either",
  "proc-macro2",
@@ -706,7 +706,7 @@ dependencies = [
 [[package]]
 name = "nekoton-jetton"
 version = "0.13.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=feature%2Fnew-abi-support#a121c6736499f9ccfbd7f0f9131baa94fda178eb"
+source = "git+https://github.com/broxus/nekoton.git?branch=feat%2Fton-client-v4#e1bb66e9506c8f445b7c111b3f46e3d161305c6c"
 dependencies = [
  "anyhow",
  "lazy_static",
@@ -723,7 +723,7 @@ dependencies = [
 [[package]]
 name = "nekoton-proto"
 version = "0.1.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=feature%2Fnew-abi-support#a121c6736499f9ccfbd7f0f9131baa94fda178eb"
+source = "git+https://github.com/broxus/nekoton.git?branch=feat%2Fton-client-v4#e1bb66e9506c8f445b7c111b3f46e3d161305c6c"
 dependencies = [
  "anyhow",
  "nekoton-abi",
@@ -735,7 +735,7 @@ dependencies = [
 [[package]]
 name = "nekoton-utils"
 version = "0.13.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=feature%2Fnew-abi-support#a121c6736499f9ccfbd7f0f9131baa94fda178eb"
+source = "git+https://github.com/broxus/nekoton.git?branch=feat%2Fton-client-v4#e1bb66e9506c8f445b7c111b3f46e3d161305c6c"
 dependencies = [
  "anyhow",
  "base64",
