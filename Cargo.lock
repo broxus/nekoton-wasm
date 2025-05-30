@@ -477,6 +477,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "hmac-sha512"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77e806677ce663d0a199541030c816847b36e8dc095f70dae4a4f4ad63da5383"
+
+[[package]]
 name = "inout"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -606,7 +612,7 @@ dependencies = [
 [[package]]
 name = "nekoton"
 version = "0.13.1"
-source = "git+https://github.com/broxus/nekoton.git?branch=feature%2Fnew-abi-support#a121c6736499f9ccfbd7f0f9131baa94fda178eb"
+source = "git+https://github.com/broxus/nekoton.git#c7bdb8816cfc540134a008be36629aeb1a1ef89a"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -636,6 +642,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.9",
+ "slip10_ed25519",
  "thiserror",
  "tiny-bip39",
  "tiny-hderive",
@@ -651,7 +658,7 @@ dependencies = [
 [[package]]
 name = "nekoton-abi"
 version = "0.13.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=feature%2Fnew-abi-support#a121c6736499f9ccfbd7f0f9131baa94fda178eb"
+source = "git+https://github.com/broxus/nekoton.git#c7bdb8816cfc540134a008be36629aeb1a1ef89a"
 dependencies = [
  "anyhow",
  "base64",
@@ -678,7 +685,7 @@ dependencies = [
 [[package]]
 name = "nekoton-contracts"
 version = "0.13.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=feature%2Fnew-abi-support#a121c6736499f9ccfbd7f0f9131baa94fda178eb"
+source = "git+https://github.com/broxus/nekoton.git#c7bdb8816cfc540134a008be36629aeb1a1ef89a"
 dependencies = [
  "anyhow",
  "nekoton-abi",
@@ -695,7 +702,7 @@ dependencies = [
 [[package]]
 name = "nekoton-derive"
 version = "0.13.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=feature%2Fnew-abi-support#a121c6736499f9ccfbd7f0f9131baa94fda178eb"
+source = "git+https://github.com/broxus/nekoton.git#c7bdb8816cfc540134a008be36629aeb1a1ef89a"
 dependencies = [
  "either",
  "proc-macro2",
@@ -706,7 +713,7 @@ dependencies = [
 [[package]]
 name = "nekoton-jetton"
 version = "0.13.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=feature%2Fnew-abi-support#a121c6736499f9ccfbd7f0f9131baa94fda178eb"
+source = "git+https://github.com/broxus/nekoton.git#c7bdb8816cfc540134a008be36629aeb1a1ef89a"
 dependencies = [
  "anyhow",
  "lazy_static",
@@ -723,7 +730,7 @@ dependencies = [
 [[package]]
 name = "nekoton-proto"
 version = "0.1.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=feature%2Fnew-abi-support#a121c6736499f9ccfbd7f0f9131baa94fda178eb"
+source = "git+https://github.com/broxus/nekoton.git#c7bdb8816cfc540134a008be36629aeb1a1ef89a"
 dependencies = [
  "anyhow",
  "nekoton-abi",
@@ -735,7 +742,7 @@ dependencies = [
 [[package]]
 name = "nekoton-utils"
 version = "0.13.0"
-source = "git+https://github.com/broxus/nekoton.git?branch=feature%2Fnew-abi-support#a121c6736499f9ccfbd7f0f9131baa94fda178eb"
+source = "git+https://github.com/broxus/nekoton.git#c7bdb8816cfc540134a008be36629aeb1a1ef89a"
 dependencies = [
  "anyhow",
  "base64",
@@ -756,7 +763,7 @@ dependencies = [
 
 [[package]]
 name = "nekoton-wasm"
-version = "1.5.0"
+version = "1.5.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1185,6 +1192,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "slip10_ed25519"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4be0ff28bf14f9610a342169084e87a4f435ad798ec528dc7579a3678fa9dc9a"
+dependencies = [
+ "hmac-sha512",
+]
+
+[[package]]
 name = "smallvec"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1314,7 +1330,7 @@ dependencies = [
 [[package]]
 name = "ton_abi"
 version = "2.1.0"
-source = "git+https://github.com/broxus/ton-labs-abi.git?branch=feature%2Fnew-abi#5ea6d37b866cdec190b16dd8eaad77e0fb6ee5ca"
+source = "git+https://github.com/broxus/ton-labs-abi.git#9386e9f5d6021f9ef072b2bb99bc10b70adb98ab"
 dependencies = [
  "anyhow",
  "base64",
@@ -1337,7 +1353,7 @@ dependencies = [
 [[package]]
 name = "ton_block"
 version = "1.9.73"
-source = "git+https://github.com/broxus/ton-labs-block.git#eb87ac3abcf6b489d51e4da2e52f850594a1644f"
+source = "git+https://github.com/broxus/ton-labs-block.git#f1c3e222ee6a2b2ccf663f4f2df5e1335b95961a"
 dependencies = [
  "anyhow",
  "base64",
