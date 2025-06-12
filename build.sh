@@ -48,6 +48,25 @@ fi
 
 wasm-pack build --release -t nodejs -d pkg
 
+# Get the package name
+BASE_NAME=$(jq -r .name pkg/package.json | sed 's/\-/_/g')
+
+PACKAGE_JSON=$(
+  jq ".exports = {
+        \".\": {
+          \"default\": \"./${BASE_NAME}.js\",
+          \"import\": \"./${BASE_NAME}.js\",
+          \"types\": \"./${BASE_NAME}.d.ts\"
+        },
+        \"./node\": {
+          \"default\": \"./${BASE_NAME}.js\",
+          \"import\": \"./${BASE_NAME}.js\",
+          \"types\": \"./${BASE_NAME}.d.ts\"
+        }
+      }" pkg/package.json
+)
+echo "$PACKAGE_JSON" > pkg/package.json
+
 # Build for both targets
 # wasm-pack build --release -t nodejs -d pkg-node
 # wasm-pack build --release -t web -d pkg
