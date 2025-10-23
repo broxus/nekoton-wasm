@@ -7,11 +7,13 @@ use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 
 use ed25519_dalek::{Signer, Verifier};
+use nt::abi::tvm::ExecutionError;
 use nt::abi::FunctionExt;
 use nt::utils::Clock;
 use num_traits::CheckedSub;
 use ton_block::{Deserializable, GetRepresentationHash, Serializable};
 use ton_executor::TransactionExecutor;
+use ton_types::{BuilderData, Cell, HashmapE, UInt256};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen_futures::future_to_promise;
@@ -48,6 +50,7 @@ pub fn run_local(
     contract_abi: &str,
     method: &str,
     input: TokensObject,
+    libraries: LibrariesObject,
     responsible: bool,
     signature_id: Option<i32>,
 ) -> Result<ExecutionOutput, JsValue> {
@@ -55,6 +58,7 @@ pub fn run_local(
     let contract_abi = parse_contract_abi(contract_abi)?;
     let method = contract_abi.function(method).handle_error()?;
     let input = parse_tokens_object(&method.inputs, input).handle_error()?;
+    let libs  = parse_libraries(libraries)?;
 
     let mut config = nt::abi::BriefBlockchainConfig::default();
     if let Some(signature_id) = signature_id {
@@ -69,6 +73,7 @@ pub fn run_local(
             &input,
             responsible,
             &config,
+            &libs,
         )
         .handle_error()?;
 
@@ -82,12 +87,14 @@ pub fn run_getter(
     contract_abi: &str,
     method: &str,
     input: TokensObject,
+    libraries: LibrariesObject,
     signature_id: Option<i32>,
 ) -> Result<ExecutionOutput, JsValue> {
     let account_stuff = parse_account_stuff(account_stuff_boc)?;
     let contract_abi = parse_contract_abi(contract_abi)?;
     let getter = contract_abi.getter(method).handle_error()?;
     let input = parse_tokens_object(&getter.inputs, input).handle_error()?;
+    let libs  = parse_libraries(libraries)?;
 
     let args = input
         .into_iter()
@@ -103,6 +110,7 @@ pub fn run_getter(
     let output = nt::abi::ExecutionContext {
         clock: clock.inner.as_ref(),
         account_stuff: &account_stuff,
+        libraries: &libs,
     }
     .run_getter_ext(method, &args, &config, &Default::default())
     .handle_error()?;
@@ -163,6 +171,118 @@ pub fn get_jetton_token_meta(
             .build()
             .unchecked_into())
     })))
+}
+
+#[wasm_bindgen(js_name = "runLocalWithLibs")]
+pub async fn run_local_with_libs(
+    transport: &Transport,
+    account_stuff_boc: &str,
+    contract_abi: &str,
+    method: &str,
+    input: TokensObject,
+    libraries: LibrariesObject,
+    retry_count: u8,
+    responsible: bool,
+    signature_id: Option<i32>,
+) -> Result<PromiseExecutionOutput, JsValue> {
+    let account_stuff = parse_account_stuff(account_stuff_boc)?;
+    let contract_abi = parse_contract_abi(contract_abi)?;
+    let method = contract_abi.function(method).handle_error()?;
+    let input = parse_tokens_object(&method.inputs, input).handle_error()?;
+    let libs  = parse_libraries(libraries)?;
+
+    let clock = transport.clock.clone();
+    let transport = transport.handle.clone();
+    let method = method.clone();
+
+    let mut config = nt::abi::BriefBlockchainConfig::default();
+    if let Some(signature_id) = signature_id {
+        config.global_id = signature_id;
+        config.capabilities |= ton_block::GlobalCapabilities::CapSignatureWithId as u64;
+    }
+
+    Ok(JsCast::unchecked_into(future_to_promise(async move {
+        run_local_with_libs_internal(
+            clock.as_ref(),
+            transport.as_ref(),
+            account_stuff,
+            method,
+            input,
+            libs,
+            retry_count,
+            responsible,
+            &config,
+        )
+        .await
+        .map(JsCast::unchecked_into)
+    })))
+}
+
+async fn run_local_with_libs_internal(
+    clock: &nt::utils::ClockWithOffset,
+    transport: &dyn nt::transport::Transport,
+    account_stuff: ton_block::AccountStuff,
+    method: ton_abi::Function,
+    input: Vec<ton_abi::Token>,
+    libraries: Vec<HashmapE>,
+    retry_count: u8,
+    responsible: bool,
+    config: &nt::abi::BriefBlockchainConfig,
+) -> Result<ExecutionOutput, JsValue> {
+    let mut libraries = libraries;
+    let mut retries = 0;
+
+    loop {
+        let output = method.run_local_ext(
+            clock,
+            account_stuff.clone(),
+            &input,
+            responsible,
+            config,
+            &libraries,
+        );
+
+        let execution_error = match output {
+            Ok(output) => return make_execution_output(output),
+            Err(e) => match e.downcast::<ExecutionError>() {
+                Ok(exec_err) => exec_err,
+                Err(e) => return Err(e).handle_error(),
+            },
+        };
+
+        let hash = match execution_error {
+            ExecutionError::MissingLibrary { hash } => hash,
+            other_error => return Err(other_error).handle_error(),
+        };
+
+        if retries >= retry_count {
+            return Err(ExecutionError::MissingLibrary { hash }).handle_error();
+        }
+
+        let cell = fetch_library_cell(transport, hash).await?;
+        let lib = create_library(hash, cell).handle_error()?;
+        libraries.push(lib);
+        retries += 1;
+    }
+}
+
+async fn fetch_library_cell(
+    transport: &dyn nt::transport::Transport,
+    hash: UInt256,
+) -> Result<Cell, JsValue> {
+    match transport.get_library_cell(&hash).await {
+        Ok(Some(cell)) => Ok(cell),
+        Ok(None) => Err(ExecutionError::MissingLibrary { hash }).handle_error(),
+        Err(e) => Err(e).handle_error(),
+    }
+}
+
+fn create_library(hash: UInt256, cell: Cell) -> anyhow::Result<HashmapE> {
+    let mut lib = HashmapE::with_bit_len(256);
+    let mut item = BuilderData::new();
+    item.checked_append_reference(cell)?;
+    lib.set_builder(hash.into(), &item)?;
+    Ok(lib)
 }
 
 #[wasm_bindgen(js_name = "makeFullAccountBoc")]
@@ -1109,4 +1229,43 @@ pub fn create_external_message(
         )
         .handle_error()?,
     })
+}
+
+#[wasm_bindgen(typescript_custom_section)]
+const TS_CUSTOM_TYPES: &'static str = r#"
+export type LibrariesObject = { [K: string]: string };
+"#;
+fn parse_libraries(libraries: LibrariesObject) -> Result<Vec<HashmapE>, JsValue> {
+
+    let mut libs = Vec::new();
+
+    let obj: &js_sys::Object = libraries.unchecked_ref();
+    let entries = js_sys::Object::entries(obj);
+
+    for i in 0..entries.length() {
+        let entry = entries.get(i);
+        let key = js_sys::Reflect::get(&entry, &0.into())?
+            .as_string()
+            .ok_or_else(|| JsValue::from_str("Key is not a string"))?;
+
+        let boc = js_sys::Reflect::get(&entry, &1.into())?
+            .as_string()
+            .ok_or_else(|| JsValue::from_str("Value is not a string"))?;
+
+        let lib = parse_library(&key, &boc).handle_error()?;
+
+        libs.push(lib);
+    }
+
+    Ok(libs)
+}
+
+fn parse_library(hash: &str, boc: &str) -> anyhow::Result<HashmapE> {
+    let mut lib = HashmapE::with_bit_len(256);
+    let mut item = BuilderData::new();
+    let cell_bytes = base64::decode(boc.as_bytes())?;
+    let cell = ton_types::deserialize_tree_of_cells(&mut cell_bytes.as_slice())?;
+    item.checked_append_reference(cell)?;
+    lib.set_builder(UInt256::from_str(hash)?.into(), &item)?;
+    Ok(lib)
 }

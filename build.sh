@@ -68,14 +68,14 @@ PACKAGE_JSON=$(
   jq ".name = \"$PKG_NAME\" |
       .exports = {
         \".\": {
-          \"default\": \"./${BASE_NAME}.js\",
+          \"types\": \"./${BASE_NAME}.d.ts\",
           \"import\": \"./${BASE_NAME}.js\",
-          \"types\": \"./${BASE_NAME}.d.ts\"
+          \"default\": \"./${BASE_NAME}.js\"
         },
         \"./node\": {
-          \"default\": \"./${BASE_NAME}_node.cjs\",
+          \"types\": \"./${BASE_NAME}_node.d.ts\",
           \"require\": \"./${BASE_NAME}_node.cjs\",
-          \"types\": \"./${BASE_NAME}_node.d.ts\"
+          \"default\": \"./${BASE_NAME}_node.cjs\"
         }
       } |
       .files += [\"${BASE_NAME}_node.cjs\", \"${BASE_NAME}_node.d.ts\", \"${BASE_NAME}_bg_node.wasm\"]" pkg/package.json
