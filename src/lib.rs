@@ -72,6 +72,7 @@ pub fn run_local(
             input.as_slice(),
             responsible,
             &config,
+            &[],
         )
         .handle_error()?;
 
