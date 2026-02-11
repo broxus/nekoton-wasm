@@ -6,7 +6,7 @@ use std::str::FromStr;
 use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Mutex};
 
-use ed25519_dalek::{Signer, Verifier};
+use ed25519_dalek::Verifier;
 use nt::abi::FunctionExt;
 use nt::transport::models::RawTransaction;
 use nt::utils::Clock;
@@ -1084,19 +1084,20 @@ pub fn generate_ed25519_key_pair() -> Result<Ed25519KeyPair, JsValue> {
 pub fn sign_data(
     secret_key: &str,
     data: &str,
-    signature_id: Option<i32>,
+    signature_ctx: JsSignatureContext,
 ) -> Result<String, JsValue> {
     let data = parse_hex_or_base64_bytes(data).handle_error()?;
+    let ctx = parse_signature_context(signature_ctx)?;
 
     let mut secret_key = parse_hex_or_base64_bytes(secret_key).handle_error()?;
     let secret = ed25519_dalek::SecretKey::from_bytes(&secret_key).handle_error()?;
     secret_key.zeroize();
 
-    let data = nt::crypto::extend_with_signature_id(&data, signature_id);
 
     let public = ed25519_dalek::PublicKey::from(&secret);
     let key_pair = ed25519_dalek::Keypair { secret, public };
-    let signature = key_pair.sign(data.as_ref());
+    let signature = ctx.sign(&key_pair, &data);
+
     Ok(base64::encode(signature.to_bytes()))
 }
 
@@ -1111,16 +1112,23 @@ pub fn verify_signature(
     public_key: &str,
     data: &str,
     signature: &str,
-    signature_id: Option<i32>,
+    signature_ctx: JsSignatureContext,
 ) -> Result<bool, JsValue> {
     let public_key = parse_public_key(public_key)?;
+    let ctx = parse_signature_context(signature_ctx)?;
 
     let data = parse_hex_or_base64_bytes(data).handle_error()?;
     let signature = parse_signature(signature)?;
 
-    let data = nt::crypto::extend_with_signature_id(&data, signature_id);
 
-    Ok(public_key.verify(data.as_ref(), &signature).is_ok())
+    let to_sign = nt::utils::ToSign {
+        ctx,
+        data,
+    };
+
+    let data = to_sign.write_to_bytes();
+
+    Ok(public_key.verify(&data, &signature).is_ok())
 }
 
 #[wasm_bindgen(js_name = "createRawExternalMessage")]
