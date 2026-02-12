@@ -25,6 +25,7 @@ export type NetworkCapabilities = {
 
 export type NetworkDescription = NetworkCapabilities & {
     signatureId: number | undefined,
+    signatureContext: SignatureContext,
 };
 
 export type BlockchainConfig = {
@@ -1377,9 +1378,11 @@ impl From<ParsedSignatureContext> for nt::utils::SignatureContext {
 pub fn parse_signature_context(
     sd: JsSignatureContext,
 ) -> Result<nt::utils::SignatureContext, JsValue> {
-    JsValue::into_serde::<ParsedSignatureContext>(&sd)
-        .handle_error()
-        .map(From::from)
+    let parsed: ParsedSignatureContext =
+        serde_wasm_bindgen::from_value(sd.into())
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+
+    Ok(parsed.into())
 }
 
 pub fn make_signature_context(data: nt::utils::SignatureContext) -> JsSignatureContext {
