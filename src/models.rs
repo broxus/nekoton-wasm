@@ -1,9 +1,9 @@
 use nt::core::models;
 use nt::core::models::TransactionError;
-use std::collections::HashMap;
-use std::convert::TryFrom;
 use nt::utils::SignatureType;
 use serde::Deserialize;
+use std::collections::HashMap;
+use std::convert::TryFrom;
 use ton_block::{
     Account, Deserializable, GetRepresentationHash, MsgAddressExt, MsgAddressInt, Serializable,
     ShardAccount, TrBouncePhase,
@@ -347,15 +347,10 @@ export type StorageFeeInfo = {
     deleteDueLimit: string;
 };
 
-export type SignatureContext = {
-    globalId: number | null,
-    signatureType: SignatureType,
-};
-
-export type SignatureType =
+export type SignatureContext =
   | { type: "empty" }
-  | { type: "signatureId"}
-  | { type: "signatureDomain"};
+  | { type: "signatureId", globalId: number }
+  | { type: "signatureDomainL2", globalId: number };
 "#;
 
 // TODO: add zerostate hash
@@ -899,8 +894,6 @@ pub struct UnsignedMessage {
     pub inner: Box<dyn nt::crypto::UnsignedMessage>,
 }
 
-
-
 #[wasm_bindgen]
 impl UnsignedMessage {
     #[wasm_bindgen(js_name = "refreshTimeout")]
@@ -1181,6 +1174,58 @@ pub fn serialize_into_boc_with_hash(data: &dyn Serializable) -> Result<BocWithHa
     make_boc_with_hash(cell)
 }
 
+#[derive(Copy, Clone, Deserialize)]
+#[serde(tag = "type", content = "globalId", rename_all = "camelCase")]
+pub enum ParsedSignatureContext {
+    Empty,
+    SignatureId(i32),
+    SignatureDomainL2(i32),
+}
+
+impl From<ParsedSignatureContext> for nt::utils::SignatureContext {
+    fn from(sd: ParsedSignatureContext) -> Self {
+        match sd {
+            ParsedSignatureContext::Empty => nt::utils::SignatureContext {
+                global_id: None,
+                signature_type: SignatureType::Empty,
+            },
+            ParsedSignatureContext::SignatureId(id) => nt::utils::SignatureContext {
+                global_id: Some(id),
+                signature_type: SignatureType::SignatureId,
+            },
+            ParsedSignatureContext::SignatureDomainL2(id) => nt::utils::SignatureContext {
+                global_id: Some(id),
+                signature_type: SignatureType::SignatureDomain,
+            },
+        }
+    }
+}
+
+pub fn parse_signature_context(
+    sd: JsSignatureContext,
+) -> Result<nt::utils::SignatureContext, JsValue> {
+    let parsed: ParsedSignatureContext =
+        serde_wasm_bindgen::from_value(sd.into()).map_err(|e| JsValue::from_str(&e.to_string()))?;
+
+    Ok(parsed.into())
+}
+
+pub fn make_signature_context(data: nt::utils::SignatureContext) -> JsSignatureContext {
+    let obj = match (data.signature_type, data.global_id) {
+        (SignatureType::SignatureId, Some(global_id)) => ObjectBuilder::new()
+            .set("type", "signatureId")
+            .set("globalId", global_id)
+            .build(),
+        (SignatureType::SignatureDomain, Some(global_id)) => ObjectBuilder::new()
+            .set("type", "signatureDomainL2")
+            .set("globalId", global_id)
+            .build(),
+        _ => ObjectBuilder::new().set("type", "empty").build(),
+    };
+
+    obj.unchecked_into()
+}
+
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(typescript_type = "TransactionId")]
@@ -1333,70 +1378,6 @@ extern "C" {
     #[wasm_bindgen(typescript_type = "JsRawMessage")]
     pub type JsRawMessage;
 
-    #[wasm_bindgen(typescript_type = "SignatureType")]
-    pub type JsSignatureType;
-
     #[wasm_bindgen(typescript_type = "SignatureContext")]
     pub type JsSignatureContext;
-}
-
-
-#[derive(Copy, Clone, Deserialize)]
-#[serde(tag = "type", content = "data", rename_all = "camelCase")]
-pub enum ParsedSignatureType {
-    Empty,
-    SignatureId,
-    SignatureDomain,
-}
-
-impl From<ParsedSignatureType> for nt::utils::SignatureType {
-    fn from(sd: ParsedSignatureType) -> Self {
-        match sd {
-            ParsedSignatureType::Empty => nt::utils::SignatureType::Empty,
-            ParsedSignatureType::SignatureId => nt::utils::SignatureType::SignatureId,
-            ParsedSignatureType::SignatureDomain => nt::utils::SignatureType::SignatureDomain,
-        }
-    }
-}
-
-#[derive(Copy, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ParsedSignatureContext {
-    pub global_id: Option<i32>,
-    pub signature_type: ParsedSignatureType,
-}
-
-impl From<ParsedSignatureContext> for nt::utils::SignatureContext {
-    fn from(sd: ParsedSignatureContext) -> Self {
-        nt::utils::SignatureContext {
-            global_id: sd.global_id,
-            signature_type: sd.signature_type.into(),
-        }
-    }
-}
-
-pub fn parse_signature_context(
-    sd: JsSignatureContext,
-) -> Result<nt::utils::SignatureContext, JsValue> {
-    let parsed: ParsedSignatureContext =
-        serde_wasm_bindgen::from_value(sd.into())
-            .map_err(|e| JsValue::from_str(&e.to_string()))?;
-
-    Ok(parsed.into())
-}
-
-pub fn make_signature_context(data: nt::utils::SignatureContext) -> JsSignatureContext {
-    let ty = match data.signature_type {
-        SignatureType::Empty => "empty",
-        SignatureType::SignatureId => "signatureId",
-        SignatureType::SignatureDomain => "signatureDomain",
-    };
-    ObjectBuilder::new()
-        .set(
-            "signatureType",
-            ObjectBuilder::new().set("type", ty).build(),
-        )
-        .set("globalId", data.global_id)
-        .build()
-        .unchecked_into()
 }

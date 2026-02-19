@@ -52,17 +52,26 @@ pub fn run_local(
     method: &str,
     input: TokensObject,
     responsible: bool,
-    signature_id: Option<i32>,
+    signature_ctx: JsSignatureContext,
 ) -> Result<ExecutionOutput, JsValue> {
     let account_stuff = parse_account_stuff(account_stuff_boc)?;
     let contract_abi = parse_contract_abi(contract_abi)?;
     let method = contract_abi.function(method).handle_error()?;
     let input = parse_tokens_object(&method.inputs, input).handle_error()?;
+    let ctx = parse_signature_context(signature_ctx)?;
 
     let mut config = nt::abi::BriefBlockchainConfig::default();
-    if let Some(signature_id) = signature_id {
-        config.global_id = signature_id;
-        config.capabilities |= ton_block::GlobalCapabilities::CapSignatureWithId as u64;
+    match (ctx.signature_type, ctx.global_id) {
+        (nt::utils::SignatureType::SignatureId, Some(global_id)) => {
+            config.global_id = global_id;
+            config.capabilities |= ton_block::GlobalCapabilities::CapSignatureWithId as u64;
+        }
+        (nt::utils::SignatureType::SignatureDomain, Some(global_id)) => {
+            config.global_id = global_id;
+            config.capabilities |= ton_block::GlobalCapabilities::CapSignatureWithId as u64;
+            config.capabilities |= ton_block::GlobalCapabilities::CapSignatureDomain as u64;
+        }
+        _ => {}
     }
 
     let output = method
@@ -1093,7 +1102,6 @@ pub fn sign_data(
     let secret = ed25519_dalek::SecretKey::from_bytes(&secret_key).handle_error()?;
     secret_key.zeroize();
 
-
     let public = ed25519_dalek::PublicKey::from(&secret);
     let key_pair = ed25519_dalek::Keypair { secret, public };
     let signature = ctx.sign(&key_pair, &data);
@@ -1120,11 +1128,7 @@ pub fn verify_signature(
     let data = parse_hex_or_base64_bytes(data).handle_error()?;
     let signature = parse_signature(signature)?;
 
-
-    let to_sign = nt::utils::ToSign {
-        ctx,
-        data,
-    };
+    let to_sign = nt::utils::ToSign { ctx, data };
 
     let data = to_sign.write_to_bytes();
 
