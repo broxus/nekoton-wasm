@@ -1360,6 +1360,9 @@ extern "C" {
     #[wasm_bindgen(typescript_type = "Promise<number | undefined>")]
     pub type PromiseOptionSignatureId;
 
+    #[wasm_bindgen(typescript_type = "Promise<SignatureContext>")]
+    pub type PromiseSignatureContext;
+
     #[wasm_bindgen(typescript_type = "Ed25519KeyPair")]
     pub type Ed25519KeyPair;
 

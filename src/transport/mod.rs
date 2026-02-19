@@ -137,6 +137,23 @@ impl Transport {
         }))
     }
 
+    #[wasm_bindgen(js_name = "getSignatureContext")]
+    pub fn get_signature_context(&self) -> PromiseSignatureContext {
+        let clock = self.clock.clone();
+        let handle = self.handle.clone();
+
+        JsCast::unchecked_into(future_to_promise(async move {
+            let network_id = handle
+                .as_ref()
+                .get_capabilities(clock.as_ref())
+                .await
+                .handle_error()?;
+            Ok(JsValue::from(make_signature_context(
+                network_id.signature_context(),
+            )))
+        }))
+    }
+
     #[wasm_bindgen(js_name = "getBlockchainConfig")]
     pub fn get_blockchain_config(&self, force: Option<bool>) -> PromiseString {
         let clock = self.clock.clone();
