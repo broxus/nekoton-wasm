@@ -240,6 +240,8 @@ impl Transport for ProxyTransport {
 
         ton_executor::BlockchainConfig::with_config(boc, global_id)
     }
+
+
 }
 
 fn parse_raw_transaction(tx: String) -> Result<RawTransaction> {

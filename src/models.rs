@@ -2,7 +2,8 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use nt::core::models;
-
+use nt::utils::SignatureType;
+use serde::Deserialize;
 use ton_block::{Deserializable, Serializable};
 use ton_types::UInt256;
 use wasm_bindgen::prelude::*;
@@ -20,7 +21,7 @@ export type NetworkCapabilities = {
 };
 
 export type NetworkDescription = NetworkCapabilities & {
-    signatureId: number | undefined,
+    signatureContext: SignatureContext,
 };
 
 export type BlockchainConfig = {
@@ -252,6 +253,11 @@ export type JettonTokenMeta = {
   baseChainId: string;
   baseToken: string;
 };
+
+export type SignatureContext =
+  | { type: "empty" }
+  | { type: "signatureId", globalId: number }
+  | { type: "signatureDomainL2", globalId: number };
 "#;
 
 // TODO: add zerostate hash
@@ -259,7 +265,10 @@ pub fn make_network_description(capabilities: models::NetworkCapabilities) -> Js
     ObjectBuilder::new()
         .set("globalId", capabilities.global_id)
         .set("capabilities", format!("0x{:x}", capabilities.raw))
-        .set("signatureId", capabilities.signature_id())
+        .set(
+            "signatureContext",
+            make_signature_context(capabilities.signature_context()),
+        )
         .build()
 }
 
@@ -736,8 +745,7 @@ pub fn make_vm_getter_output(
     params: &[ton_abi::Param],
     data: nt::abi::VmGetterOutput,
 ) -> Result<ExecutionOutput, JsValue> {
-    let mut builder = ObjectBuilder::new()
-        .set("code", data.exit_code);
+    let mut builder = ObjectBuilder::new().set("code", data.exit_code);
 
     if data.is_ok {
         if data.stack.len() != params.len() {
@@ -761,6 +769,58 @@ pub fn make_vm_getter_output(
     }
 
     Ok(builder.build().unchecked_into())
+}
+
+#[derive(Copy, Clone, Deserialize)]
+#[serde(tag = "type", content = "globalId", rename_all = "camelCase")]
+pub enum ParsedSignatureContext {
+    Empty,
+    SignatureId(i32),
+    SignatureDomainL2(i32),
+}
+
+impl From<ParsedSignatureContext> for nt::utils::SignatureContext {
+    fn from(sd: ParsedSignatureContext) -> Self {
+        match sd {
+            ParsedSignatureContext::Empty => nt::utils::SignatureContext {
+                global_id: None,
+                signature_type: SignatureType::Empty,
+            },
+            ParsedSignatureContext::SignatureId(id) => nt::utils::SignatureContext {
+                global_id: Some(id),
+                signature_type: SignatureType::SignatureId,
+            },
+            ParsedSignatureContext::SignatureDomainL2(id) => nt::utils::SignatureContext {
+                global_id: Some(id),
+                signature_type: SignatureType::SignatureDomain,
+            },
+        }
+    }
+}
+
+pub fn parse_signature_context(
+    sd: JsSignatureContext,
+) -> Result<nt::utils::SignatureContext, JsValue> {
+    let parsed: ParsedSignatureContext =
+        serde_wasm_bindgen::from_value(sd.into()).map_err(|e| JsValue::from_str(&e.to_string()))?;
+
+    Ok(parsed.into())
+}
+
+pub fn make_signature_context(data: nt::utils::SignatureContext) -> JsSignatureContext {
+    let obj = match (data.signature_type, data.global_id) {
+        (SignatureType::SignatureId, Some(global_id)) => ObjectBuilder::new()
+            .set("type", "signatureId")
+            .set("globalId", global_id)
+            .build(),
+        (SignatureType::SignatureDomain, Some(global_id)) => ObjectBuilder::new()
+            .set("type", "signatureDomainL2")
+            .set("globalId", global_id)
+            .build(),
+        _ => ObjectBuilder::new().set("type", "empty").build(),
+    };
+
+    obj.unchecked_into()
 }
 
 #[wasm_bindgen]
@@ -900,6 +960,9 @@ extern "C" {
     #[wasm_bindgen(typescript_type = "Promise<number | undefined>")]
     pub type PromiseOptionSignatureId;
 
+    #[wasm_bindgen(typescript_type = "Promise<SignatureContext>")]
+    pub type PromiseSignatureContext;
+
     #[wasm_bindgen(typescript_type = "Ed25519KeyPair")]
     pub type Ed25519KeyPair;
 
@@ -920,7 +983,10 @@ extern "C" {
 
     #[wasm_bindgen(typescript_type = "Promise<JettonTokenMeta>")]
     pub type PromiseJettonTokenMeta;
-    
+
     #[wasm_bindgen(typescript_type = "Promise<ExecutionOutput>")]
     pub type PromiseExecutionOutput;
+
+    #[wasm_bindgen(typescript_type = "SignatureContext")]
+    pub type JsSignatureContext;
 }
