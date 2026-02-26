@@ -1174,6 +1174,36 @@ pub fn serialize_into_boc_with_hash(data: &dyn Serializable) -> Result<BocWithHa
     make_boc_with_hash(cell)
 }
 
+pub fn make_vm_getter_output(
+    params: &[ton_abi::Param],
+    data: nt::abi::VmGetterOutput,
+) -> Result<ExecutionOutput, JsValue> {
+    let mut builder = ObjectBuilder::new().set("code", data.exit_code);
+
+    if data.is_ok {
+        if data.stack.len() != params.len() {
+            return Err(TokensJsonError::ParameterCountMismatch).handle_error();
+        }
+
+        let tokens = data
+            .stack
+            .iter()
+            .zip(params)
+            .map(|(value, param)| {
+                let value = map_stack_item(param, value)?;
+                Ok(ton_abi::Token {
+                    name: param.name.clone(),
+                    value,
+                })
+            })
+            .collect::<Result<Vec<_>, JsValue>>()?;
+
+        builder = builder.set("output", make_tokens_object(tokens)?);
+    }
+
+    Ok(builder.build().unchecked_into())
+}
+
 #[derive(Copy, Clone, Deserialize)]
 #[serde(tag = "type", content = "globalId", rename_all = "camelCase")]
 pub enum ParsedSignatureContext {
@@ -1336,6 +1366,9 @@ extern "C" {
     #[wasm_bindgen(typescript_type = "TokensObject")]
     pub type TokensObject;
 
+    #[wasm_bindgen(typescript_type = "LibrariesObject")]
+    pub type LibrariesObject;
+
     #[wasm_bindgen(typescript_type = "Array<AbiParam>")]
     pub type ParamsList;
 
@@ -1375,12 +1408,15 @@ extern "C" {
     #[wasm_bindgen(typescript_type = "TransactionTree")]
     pub type JsTransactionTree;
 
+    #[wasm_bindgen(typescript_type = "Promise<ExecutionOutput>")]
+    pub type PromiseExecutionOutput;
+
+    #[wasm_bindgen(typescript_type = "SignatureContext")]
+    pub type JsSignatureContext;
+
     #[wasm_bindgen(typescript_type = "JsRawTransaction")]
     pub type JsRawTransaction;
 
     #[wasm_bindgen(typescript_type = "JsRawMessage")]
     pub type JsRawMessage;
-
-    #[wasm_bindgen(typescript_type = "SignatureContext")]
-    pub type JsSignatureContext;
 }
