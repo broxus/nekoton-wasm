@@ -1089,6 +1089,11 @@ pub fn get_hash(data: &str) -> Result<String, JsValue> {
     Ok(hex::encode(sha2::Sha256::digest(&body)))
 }
 
+#[wasm_bindgen(js_name = "validateCell")]
+pub fn validate_cell(data: &str) -> bool {
+    parse_cell(data).is_ok()
+}
+
 #[wasm_bindgen(js_name = "ed25519_generateKeyPair")]
 pub fn generate_ed25519_key_pair() -> Result<Ed25519KeyPair, JsValue> {
     let key_pair = ed25519_dalek::Keypair::generate(&mut rand::thread_rng());

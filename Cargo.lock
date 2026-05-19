@@ -763,7 +763,7 @@ dependencies = [
 
 [[package]]
 name = "nekoton-wasm"
-version = "1.8.2"
+version = "1.8.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1387,7 +1387,7 @@ dependencies = [
 [[package]]
 name = "ton_executor"
 version = "1.15.54"
-source = "git+https://github.com/broxus/ton-labs-executor.git#b6ca7dc7abcc9a933c03da68da9db27b8c546c3c"
+source = "git+https://github.com/broxus/ton-labs-executor.git#8cfdfbac2af31d40bf3926b01aeba7ca5d75c214"
 dependencies = [
  "anyhow",
  "log",
